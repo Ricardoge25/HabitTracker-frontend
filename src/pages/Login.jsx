@@ -1,0 +1,89 @@
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
+
+export default function Login() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      const ok = await login(username, password);
+      if (ok) {
+        navigate("/home"); // Redirige al dashboard después del login
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="h-screen flex flex-col items-center justify-center bg-gray-950 text-white px-4">
+      {/* Titulo principal */}
+      <h1 className="text-4xl font-extrabold mb-2 font-mono">
+        Habit <span className="text-indigo-600">Tracker</span>
+      </h1>
+      <p className="text-gray-400 mb-8">Construye mejores hábito, un día a la vez</p>
+
+      {/* Caja de Login */}
+      <div className="w-full max-w-md bg-gray-900 rounded-xl shadow-lg p-8 border border-gray-700">
+        <h2 className="text-3xl font-semibold mb-2">Iniciar Sesión</h2>
+        <p className="text-sm text-gray-400 mb-6">
+          Ingresa tus credenciales para acceder a tu cuenta.
+        </p>
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-md font-semibold ml-1 mb-1">Usuario</label>
+            <input
+              type="text"
+              placeholder="Usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-md font-semibold ml-1 mb-1">Contraseña</label>
+            <input
+              type="password"
+              placeholder="*********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-black py-2 mt-2 rounded-lg font-semibold transition-colors"
+          >
+            Iniciar Sesión
+          </button>
+
+          {error && (
+            <p className="text-red-600 text-sm font-semibold text-center mt-2">
+              {error}
+              </p>
+            )}
+        </form>
+
+        {/* Enlace para registrarse */}
+        <p className="text-sm text-gray-400 mt-6 text-center">
+          ¿No tienes una cuenta?{" "}
+          <Link to={"/register"} className="text-indigo-400 hover:underline text-sm">
+            Regístrate aquí
+          </Link>
+        </p>
+        
+      </div>
+    </div>
+  );
+}
