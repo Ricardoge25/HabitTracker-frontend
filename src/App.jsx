@@ -1,5 +1,5 @@
 import './App.css'
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from './pages/Dashboard';
 import { AuthProvider } from "./context/AuthContext"; // 👈 importa el contexto
@@ -11,6 +11,7 @@ function App() {
       <Router>
         <Routes>
           {/* Rutas Públicas */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
 
           {/* Rutas Protegidas */}

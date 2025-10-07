@@ -27,7 +27,7 @@ export default function Dashboard() {
             <span className="font-semibold italic">{user?.username}</span> 👋
             <button
           onClick={logout}
-          className="bg-red-600 hover:bg-red-700 text-xs md:text-lg text-white font-semibold px-4 py-2 rounded-lg transition-colors ml-4"
+          className="bg-red-600 hover:bg-red-700 text-xs md:text-lg text-white font-semibold px-4 py-2 rounded-lg transition-colors ml-4 cursor-pointer"
         >
           Salir
         </button>
