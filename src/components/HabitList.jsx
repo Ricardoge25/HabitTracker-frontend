@@ -2,6 +2,7 @@ import { use, useEffect, useState } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { Flame, MoreVertical, Plus, X, Trash2, Edit2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function HabitList() {
   const [habits, setHabits] = useState([]);
@@ -9,6 +10,7 @@ export default function HabitList() {
   const [showModal, setShowModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // ID del hábito con un menú abierto
   const [editingHabit, setEditingHabit] = useState(null); // Hábito que se está editando
+  /* const [isCompleted, setIsCompleted] = useState(habit.completed); */
 
   // Estados para el formulario de nuevo hábito
   const [habitName, setHabitName] = useState("");
@@ -31,6 +33,7 @@ export default function HabitList() {
           setHabits((prev) => 
             prev.map((h) => (h.id === editingHabit.id ? response.data : h))
           );
+          toast.success("✅ Hábito actualizado correctamente");
         }
       } else {
         // Modo Creación
@@ -41,6 +44,7 @@ export default function HabitList() {
 
         if (response.status === 201) {
           setHabits((prev) => [...prev, response.data]);
+          toast.success("🎯 Nuevo hábito creado");
         }
       }
 
@@ -62,13 +66,15 @@ export default function HabitList() {
   }
 
   // Eliminar hábito
-  const handleDeleteHabit = async (id) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar este hábito?")) return;
+  const handleDeleteHabit = async (habitId) => {
     try {
-      await api.delete (`/habits/${id}/`);
-      setHabits((prev) => prev.filter((h) => h.id !== id));
+      const res = await api.delete(`/habits/${habitId}/`);
+      if (res.status === 204) {
+        setHabits((prev) => prev.filter((h) => h.id !== habitId));
+        toast.success("🗑️ Hábito eliminado correctamente");
+      }
     } catch (err) {
-      console.error("Error al eliminar hábito", err);
+      toast.error("❌ Error al eliminar el hábito");
     }
   };
 
@@ -88,6 +94,10 @@ export default function HabitList() {
 
     if (user) fetchHabits();
   }, [user]);
+
+  /* const toggleHabit = () => {
+    setIsCompleted(!isCompleted);
+  } */
 
   return (
     <section className="w-full max-w-6xl">
@@ -110,19 +120,25 @@ export default function HabitList() {
           {habits.map((habit) => (
             <div
               key={habit.id}
-              className="bg-gray-900 rounded-xl p-10 shadow-md hover:shadow-lg transition flex flex-col"
+              className="bg-gray-900 rounded-xl p-6 md:p-8 shadow-md hover:shadow-lg transition flex flex-col"
             >
               <div className="flex justify-between items-start">
                 <div className="flex items-cenrter gap-3">
                   <input
                     type="checkbox"
-                    className="w-4 h-8 accent-green-700 bg-white rounded-4xl border-2 border-gray-500"
+                    //checked = {isCompleted}
+                    //onChange={toggleHabit}
+                    className="w-5 h-5 mt-2 appearance-none rounded-lg border-2 border-gray-400 bg-white checked:bg-green-500 checked:border-green-500 transition-all duration-200 cursor-pointer"
                   />
                   <div>
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 /* className={`text-lg md:text-2xl font-semibold duration-200 ${
+                      isCompleted ? "line-through text-gray-400" : "text-white"
+                      }`} */ 
+                      className="text-lg md:text-2xl font-semibold duration-200 text-white"
+                    >
                       {habit.name}
                     </h3>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm md:text-base text-gray-400">
                       {habit.description || "Sin descripción"}
                     </p>
                   </div>
@@ -136,7 +152,7 @@ export default function HabitList() {
                     }
                     className="text-gray-400 hover:text-white transition cursor-pointer"
                   >
-                    <MoreVertical size={20} />
+                    <MoreVertical size={24} />
                   </button>
 
                   {openMenuId === habit.id && (
@@ -159,9 +175,16 @@ export default function HabitList() {
               </div>
 
               {/* Info del hábito */}
-              <div className="flex items-center gap-3 mt-4 text-sm text-gray-400">
-                <span className="bg-blue-600/30 border border-blue-600 text-blue-400 px-2 py-1 text-xs rounded-full">
-                  {habit.category || "General"}
+              <div className="flex items-center gap-3 mt-6 text-sm text-gray-400">
+                <span 
+                  className="border px-2 py-1 text-xs rounded-full font-bold"
+                  style={{
+                    borderColor: habit.category?.color || "#4951E4" ,
+                    color: habit.category?.color || "#4951E4",
+                    backgroundColor: `${habit.category?.color || "#4951E4"}30`,
+                  }}
+                >
+                  {habit.category?.name || "Sin categoría"}
                 </span>
                 <div className="flex items-center gap-1">
                   <Flame className="text-orange-500" size={16} />

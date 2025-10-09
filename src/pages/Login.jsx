@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -8,6 +9,14 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const location = useLocation();
+
+  // Mostrar notificación si el usuario acaba de registrarse
+  useEffect(() => {
+    if(location.state?.registered){
+      toast.success("Registro exitoso. ¡Inicia sesión para continuar!");
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,10 +78,10 @@ export default function Login() {
           </button>
 
           {error && (
-            <p className="text-red-600 text-sm font-semibold text-center mt-2">
+            <p className="text-red-500 text-sm text-center bg-red-500/2 p-2 rounded-md border border-red-700">
               {error}
-              </p>
-            )}
+            </p>
+          )}
         </form>
 
         {/* Enlace para registrarse */}
