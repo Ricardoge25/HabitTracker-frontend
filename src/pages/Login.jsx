@@ -49,7 +49,7 @@ export default function Login() {
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-md font-semibold ml-1 mb-1">Usuario</label>
+            <label className="block text-base font-semibold ml-1 mb-1">Usuario</label>
             <input
               type="text"
               placeholder="Usuario"
@@ -60,7 +60,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-md font-semibold ml-1 mb-1">Contraseña</label>
+            <label className="block text-base font-semibold ml-1 mb-1">Contraseña</label>
             <input
               type="password"
               placeholder="*********"
@@ -72,7 +72,7 @@ export default function Login() {
 
           <button 
             type="submit" 
-            className="w-full bg-indigo-500 hover:bg-indigo-600 text-black py-2 mt-2 rounded-lg font-semibold transition-colors"
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 mt-2 rounded-lg font-semibold transition-colors"
           >
             Iniciar Sesión
           </button>

@@ -3,31 +3,41 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { Flame, MoreVertical, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import HabitModal from "./HabitModal";
 
 export default function HabitList() {
   const [habits, setHabits] = useState([]);
   const { user } = useAuth();
-  const [showModal, setShowModal] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null); // ID del hábito con un menú abierto
   const [editingHabit, setEditingHabit] = useState(null); // Hábito que se está editando
   /* const [isCompleted, setIsCompleted] = useState(habit.completed); */
 
-  // Estados para el formulario de nuevo hábito
-  const [habitName, setHabitName] = useState("");
-  const [habitDescription, setHabitDescription] = useState("");
+  const [categories, setCategories] = useState([]);
+  useEffect(() => {
+    api.get("/categories/").then(res => setCategories(res.data));
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/categories/",{
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access")}`,
+        },
+      });
+      setCategories(response.data);
+    } catch (error) {
+      console.error("❌ Error al obtener categorías:", error);
+    }
+  };
 
   // Crear nuevo hábito
-  const handleCreateHabit = async (e) => {
-    e.preventDefault();
+  const handleCreateHabit = async (habitData) => {
     // Lógica para crear un nuevo hábito (llamada a la API)
-  
     try {
       if (editingHabit) {
         // Modo Edición
-        const response = await api.put(`/habits/${editingHabit.id}/`, {
-          name: habitName,
-          description: habitDescription,
-        });
+        const response = await api.put(`/habits/${editingHabit.id}/`, habitData);
 
         if (response.status === 200) {
           setHabits((prev) => 
@@ -37,10 +47,7 @@ export default function HabitList() {
         }
       } else {
         // Modo Creación
-        const response = await api.post("/habits/", {
-          name: habitName,
-          description: habitDescription,
-        });
+        const response = await api.post("/habits/", habitData);
 
         if (response.status === 201) {
           setHabits((prev) => [...prev, response.data]);
@@ -49,21 +56,28 @@ export default function HabitList() {
       }
 
       // Limpiar estados
-      setHabitName("");
-      setHabitDescription("");
       setEditingHabit(null);
-      setShowModal(false);
+      setIsModalOpen(false);
     } catch (err) {
       console.error("Error al crear/editar hábito", err);
+      toast.error("❌ No se pudo crear/editar el hábito")
     }
   };
 
+  const handleNewHabit = () => {
+    setEditingHabit(null);
+    setIsModalOpen(true);
+  }
+
   const handleEditHabit = (habit) => {
     setEditingHabit(habit);
-    setHabitName(habit.name);
-    setHabitDescription(habit.description || "");
-    setShowModal(true);
+    setIsModalOpen(true);
   }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingHabit(null);
+  };
 
   // Eliminar hábito
   const handleDeleteHabit = async (habitId) => {
@@ -105,7 +119,7 @@ export default function HabitList() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-white">Tus Hábitos</h2>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleNewHabit}
           className="flex items-center gap-2 bg-white text-blue-600 font-medium hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
         >
           <Plus size={16} />
@@ -187,7 +201,7 @@ export default function HabitList() {
                   {habit.category?.name || "Sin categoría"}
                 </span>
                 <div className="flex items-center gap-1">
-                  <Flame className="text-orange-500" size={16} />
+                  <Flame className="text-orange-500" size={20} />
                   <span>0 días</span>
                 </div>
               </div>
@@ -197,48 +211,14 @@ export default function HabitList() {
       )}
 
       {/* Modal para crear nuevo hábito */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-2xl p-8 w-[95%] max-w-xl shadow-2xl relative">
-            <h3 className="text-xl font-semibold text-white mb-6">
-              {editingHabit ? "Editar Hábito" : "Nuevo Hábito"}
-            </h3>
-
-            <form onSubmit={handleCreateHabit} className="flex flex-col gap-3">
-              <input
-                type="text"
-                className="p-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:ring-2 focus:ring-blue-600"
-                placeholder="Nombre del hábito"
-                value={habitName}
-                onChange={(e) => setHabitName(e.target.value)}
-                required
-              />
-              <textarea
-                placeholder="Descripción (opcional)"
-                className="p-2 rounded-md bg-gray-800 text-white border border-gray-700 focus:ring-2 focus:ring-blue-600"
-                rows={5}
-                value={habitDescription}
-                onChange={(e) => setHabitDescription(e.target.value)}
-              ></textarea>
-
-              <button
-                type="submit"
-                className="bg-blue-600 hover:blue-700 text-white py-2.5 rounded-lg font-medium transition-all"
-              >
-                {editingHabit ? "Gurdar cambios" : "Crear Hábito"}
-              </button>
-            </form>
-
-            {/* Cerrar Modal */}
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-5 right-5 text-gray-600 hover:text-white text-lg"
-            >
-              <X size={28} />
-            </button>
-          </div>
-        </div>
-      )}
+      <HabitModal 
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleCreateHabit}
+        habit={editingHabit}
+        categories={categories}
+        fetchCategories={fetchCategories}
+      />
     </section>
   );
 }
