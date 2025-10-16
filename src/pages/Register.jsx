@@ -46,7 +46,7 @@ export default function Register() {
   };
 
   return (
-    <div className="md:h-screen flex flex-col items-center justify-center bg-gray-950 text-white px-4 pb-2">
+    <div className="md:h-screen flex flex-col items-center justify-center bg-black text-white px-4 pb-2">
       {/* Título Principal */}
       <h1 className="text-3xl md:text-4xl font-extrabold mb-2 font-mono mt-6">
         Habit <span className="text-indigo-600">Tracker</span>
@@ -56,7 +56,7 @@ export default function Register() {
       </p>
 
       {/* Caja de Registro */}
-      <div className="bg-gray-900 p-6 md:p-8 rounded-xl shadow-lg border border-gray-700 w-full max-w-md mb-4">
+      <div className="p-6 md:p-8 rounded-xl shadow-lg border-2 border-gray-400 w-full max-w-md mb-4">
         <h2 className="text-2xl md:text-3xl font-semibold mb-2">Crear Cuenta</h2>
         <p className="text-sm md:text-base text-gray-400 mb-3 md:mb-6">
           Completa el formulario para comenzar una nueva aventura.
@@ -131,7 +131,7 @@ export default function Register() {
 
           <button
             type="submit"
-            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 mt-2 rounded-lg font-semibold transition-colors"
+            className="w-full bg-indigo-600 hover:bg-indigo-800 text-white py-2 mt-2 rounded-lg font-semibold transition-colors"
           >
             Registrarse
           </button>
@@ -141,7 +141,7 @@ export default function Register() {
           ¿Ya tienes una cuenta?{" "}
           <Link
             to="/login"
-            className="text-indigo-400 hover:text-indigo-300 font-medium"
+            className="text-indigo-400 hover:underline text-sm font-semibold"
           >
             Inicia sesión
           </Link>

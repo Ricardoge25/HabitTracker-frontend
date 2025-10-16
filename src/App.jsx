@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import { AuthProvider } from "./context/AuthContext"; // 👈 importa el contexto
 import ProtectRoute from './components/ProtectRoute';
 import { Toaster } from "react-hot-toast";
+import Categories from './pages/Categories';
 
 function App() {
   return (
@@ -24,6 +25,14 @@ function App() {
               element={
                 <ProtectRoute>
                   <Dashboard /> 
+                </ProtectRoute>
+              }
+            />
+            <Route
+              path="/categories"
+              element={
+                <ProtectRoute>
+                  <Categories />
                 </ProtectRoute>
               }
             />

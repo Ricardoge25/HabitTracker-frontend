@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import CategoryModal from "./CategoryModal";
+import api from "../api/axios";
+import { toast } from "react-hot-toast";
 
 export default function HabitModal({ isOpen, onClose, onSave, habit, categories, fetchCategories }) {
   const [name, setName] = useState("");
@@ -7,6 +9,10 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
   const [frequency, setFrequency] = useState("daily");
   const [target, setTarget] = useState("");
   const [category, setCategory] = useState("");
+  const [categoryData, setCategoryData] = useState({
+    name: "",
+    color: "#4951E4",
+  });
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Cargar datos si es edición
@@ -28,13 +34,6 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log({
-      name,
-      description,
-      frequency,
-      target_per_period: Number(target),
-      category_id: category ? Number(category) : null,
-    });
     onSave({
       name,
       description,
@@ -53,8 +52,8 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
 
       {/* Contenedor del modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-xl max-w-lg w-full p-10 relative">
-          <h2 className="text-3xl font-bold mb-8 text-white">
+        <div className="bg-black border-2 border-gray-400 rounded-2xl shadow-xl max-w-lg w-full p-10 relative">
+          <h2 className="text-4xl font-bold mb-8 text-white text-center font-mono">
             {habit ? "Editar hábito" : "Nuevo hábito"}
           </h2>
 
@@ -63,7 +62,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
               <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Nombre</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-800"
                 placeholder="Nombre"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -74,7 +73,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             <div>
               <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Descripción</label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -84,7 +83,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             <div>
               <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Frecuencia</label>
               <select
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 "
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
               >
@@ -95,10 +94,10 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Meta</label>
+              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Meta por Día</label>
               <input
                 type="number"
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 min="1"
@@ -120,7 +119,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
                 </button>
               </div>
               <select
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -143,7 +142,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors"
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-800 text-white font-semibold transition-colors"
               >
                 {habit ? "Guardar cambios" : "Crear hábito"}
               </button>
@@ -156,10 +155,25 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
       <CategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
-        onSave={() => {
-          fetchCategories();
-          setIsCategoryModalOpen(false);
+        onSave={async (categoryData) => {
+          try {
+            const response = await api.post(
+              "/categories/",
+              categoryData,
+            );
+
+            toast.success("Categoría creada correctamente.")
+
+            await fetchCategories(); // Recarga categorías desde el backend
+            setCategory(response.data.id); // Selecciona automáticamente la nueva
+            setIsCategoryModalOpen(false);
+
+          } catch (error) {
+            console.error("Error creando categoría", error);
+            toast.error("No se pudo crear la categoría")
+          }
         }}
+        cate
       />
     </>
   );
