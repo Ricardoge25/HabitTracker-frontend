@@ -1,9 +1,27 @@
 import { useAuth } from "../context/AuthContext";
 import HabitList from "../components/HabitList";
 import { Flame, CheckCircle, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+import api from "../api/axios";
+import { toast } from "react-hot-toast";
+import { ProgressBar } from "../components/ProgressBar";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const [globalProgress, setGlobalProgress] = useState(null);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const res = await api.get("/progress/global/");
+        setGlobalProgress(res.data);
+      } catch (error) {
+        toast.error("Error al obtener el progreso global:", error);
+      }
+    };
+
+    fetchProgress();
+  }, []);
 
   // Datos quemados para métricas de ejemplo
   const mockStats = {
@@ -86,8 +104,20 @@ export default function Dashboard() {
             {mockStats.completedDays} de {mockStats.daysThisMonth} días
           </p>  
         </div>
+      <div className="max-w-full">
+        {globalProgress && (
+          <div className="max-w-md">
+            <ProgressBar
+              level={globalProgress.level}
+              xp={globalProgress.experience}
+              xpToNext={globalProgress.xp_to_next}
+            />
+          </div>
+        )}
+      </div>
       </section>
 
+      
       {/* Lista de hábitos */}
       <HabitList />
     </div>

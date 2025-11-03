@@ -38,7 +38,7 @@ export default function HabitList() {
     try {
       if (editingHabit) {
         // Modo Edición
-        const response = await api.put(`/habits/${editingHabit.id}/`, habitData);
+        const response = await api.patch(`/habits/${editingHabit.id}/`, habitData);
 
         if (response.status === 200) {
           setHabits((prev) => 
@@ -96,12 +96,17 @@ export default function HabitList() {
   useEffect(() => {
     const fetchHabits = async () => {
       try {
-        const res = await api.get("/habits/", {
+        const res = await api.get("/habits/today/", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access")}`,
           },
         });
-        setHabits(res.data);
+
+        // ✅ Ordenar: primero los NO completados (false), luego los completados (true)
+        const sortedHabits = res.data.sort((a, b) => a.completed_today - b.completed_today);
+
+
+        setHabits(sortedHabits);
       } catch (err) {
         console.error("❌ Error cargando hábitos", err);
       }
@@ -111,26 +116,31 @@ export default function HabitList() {
   }, [user]);
 
   const handleToggleCompletion = async (habit) => {
-    try{
-      const response = await api.post(
-        `/habits/${habit.id}/toggle-completion/`,
-        { completed: !habit.completed_today }, // alterna el valor
-      );
+    try {
+      const nowIso = new Date().toISOString();
+      const res = await api.post(`/habits/${habit.id}/toggle-completion/`, {
+        date: nowIso,
+        completed: !habit.completed_today,
+      });
 
-      setHabits((prevHabits) => 
-        prevHabits.map((h) => 
-          h.id === habit.id ? {...h, completed_today: response.data.completed } : h
-        )
-      );
+      setHabits((prev) => {
+        const updated = prev.map((h) =>
+          h.id === habit.id
+            ? { ...h, completed_today: res.data.completed }
+            : h
+        );
+
+        return updated.sort((a, b) => a.completed_today - b.completed_today);
+      });
 
       toast.success(
-        response.data.completed
-          ? `🎯 Marcaste "${habit.name}" como completado`
-          : `🔁 Desmarcaste "${habit.name}"`
+        res.data.completed
+          ? `✅ Completaste "${habit.name}" hoy`
+          : `❌ Desmarcaste "${habit.name}"`
       );
     } catch (error) {
-      console.error("❌ Error al marcar hábito:", error);
-      toast.error ("No se pudo actualizar el estado del hábito");
+      console.error("❌ Error al actualizar el hábito", error);
+      toast.error("Error al actualizar el hábito");
     }
   };
 
@@ -164,15 +174,15 @@ export default function HabitList() {
           {habits.map((habit) => (
             <div
               key={habit.id}
-              className= {`bg-black rounded-xl border-2 ${habit.completed_today ? "border-indigo-600" : "border-gray-300"} p-6 md:p-8 shadow-md hover:shadow-lg transition flex flex-col`}
+              className= {`bg-black rounded-xl border-2 ${habit.completed_today ? "border-indigo-500 bg-slate-950" : "border-gray-300"} p-6 md:p-8 shadow-md hover:shadow-lg transition flex flex-col`}
             >
               <div className="flex justify-between items-start">
                 <div className="flex items-cenrter gap-3">
                   <input
                     type="checkbox"
-                    checked = {habit.completed_today}
-                    onChange={() => handleToggleCompletion(habit)}
-                    className="w-5 h-5 mt-2 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-500 checked:border-green-500 transition-all duration-200 cursor-pointer"
+                    checked = {!!habit.completed_today}
+                    onChange={() => handleToggleCompletion(habit )}
+                    className="w-5 h-5 mt-2 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer"
                   />
                   <div>
                     <h3 className={`text-lg md:text-2xl duration-200 ${

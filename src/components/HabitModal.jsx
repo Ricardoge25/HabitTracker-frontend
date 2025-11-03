@@ -7,7 +7,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("daily");
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState(habit?.target_per_period ?? 1);
   const [category, setCategory] = useState("");
   const [categoryData, setCategoryData] = useState({
     name: "",
@@ -21,7 +21,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
       setName(habit.name || "");
       setDescription(habit.description || "");
       setFrequency(habit.frequency || "daily");
-      setTarget(habit.target_per_period || "");
+      setTarget(habit.target_per_period || 1);
       setCategory(habit.category?.id || "");
     } else {
       setName("");
@@ -59,10 +59,10 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Nombre</label>
+              <label className="block text-base font-semibold ml-1 mb-1 text-white">Nombre</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-800"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 placeholder="Nombre"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -71,9 +71,9 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Descripción</label>
+              <label className="block text-base font-semibold ml-1 mb-1 text-white">Descripción</label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -81,9 +81,9 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Frecuencia</label>
+              <label className="block text-base font-semibold ml-1 mb-1 text-white">Frecuencia</label>
               <select
-                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 "
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
               >
@@ -94,20 +94,19 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">Meta por Día</label>
+              <label className="block text-base font-semibold ml-1 mb-1 text-white">Meta por Día</label>
               <input
                 type="number"
-                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={target}
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                value={target || 1} 
                 onChange={(e) => setTarget(e.target.value)}
                 min="1"
-                required
               />
             </div>
 
             <div>
               <div className="flex justify-between items-center">
-                <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">
+                <label className="block text-base font-semibold ml-1 mb-1 text-white">
                   Categoría (opcional)
                 </label>
                 <button
@@ -119,7 +118,7 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
                 </button>
               </div>
               <select
-                className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >

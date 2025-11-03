@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000/api/", // URL de la API (Backend)
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/", // URL de la API (Backend)
 })
 
 // Si hay token guardado en localStorage, lo añade en los headers
@@ -29,7 +29,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refresh = localStorage.getItem("refresh");
-        const res = await axios.post("http://localhost:8000/api/token/refresh/", {
+        const res = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:8000/api/"}token/refresh/`, {
           refresh,
         });
 
