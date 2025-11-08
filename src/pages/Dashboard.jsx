@@ -10,16 +10,16 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const [globalProgress, setGlobalProgress] = useState(null);
 
-  useEffect(() => {
-    const fetchProgress = async () => {
-      try {
-        const res = await api.get("/progress/global/");
-        setGlobalProgress(res.data);
-      } catch (error) {
-        toast.error("Error al obtener el progreso global:", error);
-      }
-    };
+  const fetchProgress = async () => {
+    try {
+      const res = await api.get("/progress/global/");
+      setGlobalProgress(res.data);
+    } catch (error) {
+      toast.error("Error al obtener el progreso global");
+    }
+  };
 
+  useEffect(() => {
     fetchProgress();
   }, []);
 
@@ -104,9 +104,9 @@ export default function Dashboard() {
             {mockStats.completedDays} de {mockStats.daysThisMonth} días
           </p>  
         </div>
-      <div className="max-w-full">
+      <div className="w-full col-span-1 sm:col-span-2 md:col-span-3">
         {globalProgress && (
-          <div className="max-w-md">
+          <div className="w-full">
             <ProgressBar
               level={globalProgress.level}
               xp={globalProgress.experience}
@@ -117,9 +117,8 @@ export default function Dashboard() {
       </div>
       </section>
 
-      
       {/* Lista de hábitos */}
-      <HabitList />
+      <HabitList onProgressChange={fetchProgress} />
     </div>
   );
 }

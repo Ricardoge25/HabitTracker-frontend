@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import HabitModal from "./HabitModal";
 import { useNavigate } from "react-router-dom";
 
-export default function HabitList() {
+export default function HabitList({ onProgressChange }) {
   const [habits, setHabits] = useState([]);
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -105,7 +105,7 @@ export default function HabitList() {
         // ✅ Ordenar: primero los NO completados (false), luego los completados (true)
         const sortedHabits = res.data.sort((a, b) => a.completed_today - b.completed_today);
 
-
+        console.log("Hábitos cargados:", res.data)
         setHabits(sortedHabits);
       } catch (err) {
         console.error("❌ Error cargando hábitos", err);
@@ -122,11 +122,17 @@ export default function HabitList() {
         date: nowIso,
         completed: !habit.completed_today,
       });
+      
+      const { record, habit_progress, global_progress } = res.data;
 
       setHabits((prev) => {
         const updated = prev.map((h) =>
           h.id === habit.id
-            ? { ...h, completed_today: res.data.completed }
+            ? { 
+                ...h, 
+                completed_today: record.completed,
+                progress: habit_progress,
+              }
             : h
         );
 
@@ -138,9 +144,34 @@ export default function HabitList() {
           ? `✅ Completaste "${habit.name}" hoy`
           : `❌ Desmarcaste "${habit.name}"`
       );
+
+      if (onProgressChange) {
+        onProgressChange(global_progress); // 🔁 actualiza la barra global
+      }
     } catch (error) {
       console.error("❌ Error al actualizar el hábito", error);
       toast.error("Error al actualizar el hábito");
+    }
+  };
+
+  // Aclara un color hex (valor entre 0 y 1)
+  const lightenColor = (color, amount) => {
+    try {
+      let col = color.replace("#", "");
+      if (col.length === 3) col = col.split("").map(c => c + c).join("");
+
+      const num = parseInt(col, 16);
+      let r = (num >> 16) + Math.round(255 * amount);
+      let g = ((num >> 8) & 0x00ff) + Math.round(255 * amount);
+      let b = (num & 0x0000ff) + Math.round(255 * amount);
+
+      r = Math.min(255, r);
+      g = Math.min(255, g);
+      b = Math.min(255, b);
+
+      return `rgb(${r}, ${g}, ${b})`;
+    } catch {
+      return color; // fallback si algo falla
     }
   };
 
@@ -245,6 +276,33 @@ export default function HabitList() {
                   <span>0 días</span>
                 </div>
               </div>
+
+              {/* Barra de experiencia */}
+              {habit.progress && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-400 mb-1">
+                    <span>Nivel {habit.progress.leve}</span>
+                    <span>
+                      {habit.progress.experience} / {habit.progress.xp_to_next} XP
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 rounded-full transition-all duration-700 ease-out"
+                      style={{
+                        width: `${Math.min(
+                          (habit.progress.experience / habit.progress.xp_to_next) * 100,
+                          100
+                        )}%`,
+                        background: `linear-gradient(90deg, 
+                          ${lightenColor(habit.category?.color || "#4951E4", 0.3)}, 
+                          ${habit.category?.color || "#4951E4"})`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
