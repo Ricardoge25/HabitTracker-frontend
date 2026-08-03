@@ -59,31 +59,31 @@ export default function Categories() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-12 py-10">
+    <div className="min-h-screen bg-black text-white px-4 sm:px-8 md:px-12 py-6 md:py-10">
       {/* Encabezado */}
-      <div className="flex items-center gap-8 mb-16">
+      <div className="flex items-center gap-4 sm:gap-6 md:gap-8 mb-8 md:mb-16">
         <ArrowLeft
-          size={32}
-          className="cursor-pointer hover:bg-white rounded-lg transition hover:text-indigo-600 "
+          size={28}
+          className="shrink-0 cursor-pointer hover:bg-white rounded-lg transition hover:text-indigo-600"
           onClick={() => navigate("/home")}
         />
         <div>
-          <h1 className="text-3xl font-bold text-indigo-400">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-indigo-400">
             Gestión de Categorías
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-xs sm:text-sm text-gray-400">
             Organiza tus hábitos por categorías
           </p>
         </div>
       </div>
 
       {/* Encabezado de lista y botón */}
-      <div className="flex justify-between items-center mb-6 ml-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:ml-2">
         <div>
-          <h2 className="text-3xl font-semibold mb-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold mb-1 sm:mb-2">
             Tus Categorías
           </h2>
-          <p className="text-sm text-gray-400">
+          <p className="text-xs sm:text-sm text-gray-400">
             {categories.length} categoría{categories.length !== 1 && "s"} creadas
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function Categories() {
             setEditingCategory(null);
             setShowModal(true);
           }}
-          className="flex items-center gap-2 bg-white text-indigo-600 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 hover:text-white transition"
+          className="flex items-center justify-center gap-2 bg-white text-indigo-600 text-sm sm:text-base font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 hover:text-white transition w-full sm:w-auto"
         >
           <Plus size={18} />
           Nueva Categoría

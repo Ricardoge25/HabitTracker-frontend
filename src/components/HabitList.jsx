@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import HabitModal from "./HabitModal";
 import { useNavigate } from "react-router-dom";
 
-export default function HabitList({ onProgressChange }) {
+export default function HabitList({ onProgressChange, onStatsChange }) {
   const [habits, setHabits] = useState([]);
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,7 +44,7 @@ export default function HabitList({ onProgressChange }) {
           setHabits((prev) => 
             prev.map((h) => (h.id === editingHabit.id ? response.data : h))
           );
-          toast.success("✅ Hábito actualizado correctamente");
+          toast.success("Hábito actualizado correctamente");
         }
       } else {
         // Modo Creación
@@ -105,8 +105,12 @@ export default function HabitList({ onProgressChange }) {
         // ✅ Ordenar: primero los NO completados (false), luego los completados (true)
         const sortedHabits = res.data.sort((a, b) => a.completed_today - b.completed_today);
 
-        console.log("Hábitos cargados:", res.data)
         setHabits(sortedHabits);
+
+        if (onStatsChange) {
+          const completed = sortedHabits.filter(h => h.completed_today).length;
+          onStatsChange({ completed, total: sortedHabits.length });
+        }
       } catch (err) {
         console.error("❌ Error cargando hábitos", err);
       }
@@ -123,7 +127,7 @@ export default function HabitList({ onProgressChange }) {
         completed: !habit.completed_today,
       });
       
-      const { record, habit_progress, global_progress } = res.data;
+      const { record, habit_progress, global_progress, current_streak } = res.data;
 
       setHabits((prev) => {
         const updated = prev.map((h) =>
@@ -132,18 +136,31 @@ export default function HabitList({ onProgressChange }) {
                 ...h, 
                 completed_today: record.completed,
                 progress: habit_progress,
+                current_streak,
               }
             : h
         );
 
-        return updated.sort((a, b) => a.completed_today - b.completed_today);
+        const sorted = updated.sort((a, b) => a.completed_today - b.completed_today);
+
+        if (onStatsChange) {
+          const completed = sorted.filter(h => h.completed_today).length;
+          onStatsChange({ completed, total: sorted.length });
+        }
+
+        return sorted;
       });
 
-      toast.success(
-        res.data.completed
-          ? `✅ Completaste "${habit.name}" hoy`
-          : `❌ Desmarcaste "${habit.name}"`
-      );
+      if (record.completed) {
+        toast.success(`Completaste "${habit.name}" hoy (+${habit_progress.experience} XP)`);
+      } else {
+        toast(`Desmarcaste "${habit.name}" (-25 XP)`, {
+          icon: '❌',
+          style: {
+            color: '#fff',
+          },
+        });
+      }
 
       if (onProgressChange) {
         onProgressChange(global_progress); // 🔁 actualiza la barra global
@@ -178,19 +195,19 @@ export default function HabitList({ onProgressChange }) {
   return (
     <section className="w-full max-w-6xl">
       {/* Encabezado */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-white">Tus Hábitos</h2>
-        <div className="flex gap-4 px-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">Tus Hábitos</h2>
+        <div className="flex gap-2 sm:gap-4">
           <button
             onClick={() => navigate("/categories")}
-            className="flex items-center gap-2 border-2 border-gray-200 text-white font-medium hover:bg-white hover:text-indigo-600 px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border-2 border-gray-200 text-white text-sm sm:text-base font-medium hover:bg-white hover:text-indigo-600 px-3 sm:px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
           >
-            <Tags size={18} />
+            <Tags size={16} />
             Categorías
           </button>
           <button
             onClick={handleNewHabit}
-            className="flex items-center gap-2 bg-white text-indigo-600 font-medium hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-indigo-600 text-sm sm:text-base font-medium hover:bg-indigo-600 hover:text-white px-3 sm:px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
           >
             <Plus size={16} />
             Nuevo Hábito
@@ -213,7 +230,7 @@ export default function HabitList({ onProgressChange }) {
                     type="checkbox"
                     checked = {!!habit.completed_today}
                     onChange={() => handleToggleCompletion(habit )}
-                    className="w-5 h-5 mt-2 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer"
+                    className="w-5 h-5 mt-2 shrink-0 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer"
                   />
                   <div>
                     <h3 className={`text-lg md:text-2xl duration-200 ${
@@ -223,7 +240,7 @@ export default function HabitList({ onProgressChange }) {
                     >
                       {habit.name}
                     </h3>
-                    <p className="text-sm md:text-base text-gray-400">
+                    <p className="text-sm md:text-base text-gray-400 mt-2">
                       {habit.description || "Sin descripción"}
                     </p>
                   </div>
@@ -273,7 +290,7 @@ export default function HabitList({ onProgressChange }) {
                 </span>
                 <div className="flex items-center gap-1">
                   <Flame className="text-orange-500" size={20} />
-                  <span>0 días</span>
+                  <span>{habit.current_streak ?? 0} días</span>
                 </div>
               </div>
 
@@ -281,7 +298,7 @@ export default function HabitList({ onProgressChange }) {
               {habit.progress && (
                 <div className="mt-4">
                   <div className="flex justify-between text-sm text-gray-400 mb-1">
-                    <span>Nivel {habit.progress.leve}</span>
+                    <span>Nivel {habit.progress.level}</span>
                     <span>
                       {habit.progress.experience} / {habit.progress.xp_to_next} XP
                     </span>

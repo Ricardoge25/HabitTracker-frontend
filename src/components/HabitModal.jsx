@@ -52,17 +52,17 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
 
       {/* Contenedor del modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-black border-2 border-gray-400 rounded-2xl shadow-xl max-w-lg w-full p-10 relative">
-          <h2 className="text-4xl font-bold mb-8 text-white text-center font-mono">
-            {habit ? "Editar hábito" : "Nuevo hábito"}
+        <div className="bg-black border-2 border-gray-400 rounded-2xl shadow-xl max-w-lg w-full p-5 sm:p-8 md:p-10 relative max-h-[90vh] overflow-y-auto">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-5 sm:mb-6 md:mb-8 text-white text-center font-mono">
+            {habit ? "Editar Hábito" : "Nuevo Hábito"}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-white">Nombre</label>
+              <label className="block text-sm sm:text-base font-semibold ml-1 mb-1 text-white">Nombre</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 placeholder="Nombre"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -71,9 +71,9 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-white">Descripción</label>
+              <label className="block text-sm sm:text-base font-semibold ml-1 mb-1 text-white">Descripción</label>
               <textarea
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -81,9 +81,9 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-white">Frecuencia</label>
+              <label className="block text-sm sm:text-base font-semibold ml-1 mb-1 text-white">Frecuencia</label>
               <select
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
               >
@@ -94,10 +94,10 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <label className="block text-base font-semibold ml-1 mb-1 text-white">Meta por Día</label>
+              <label className="block text-sm sm:text-base font-semibold ml-1 mb-1 text-white">Meta por Día</label>
               <input
                 type="number"
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={target || 1} 
                 onChange={(e) => setTarget(e.target.value)}
                 min="1"
@@ -105,20 +105,20 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
             </div>
 
             <div>
-              <div className="flex justify-between items-center">
-                <label className="block text-base font-semibold ml-1 mb-1 text-white">
+              <div className="flex justify-between items-center flex-wrap gap-1">
+                <label className="block text-sm sm:text-base font-semibold ml-1 mb-1 text-white">
                   Categoría (opcional)
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(true)}
-                  className="text-sm text-indigo-300 hover:underline"
+                  className="text-xs sm:text-sm text-indigo-300 hover:underline"
                 >
                   + Nueva Categoría
                 </button>
               </div>
               <select
-                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
+                className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -131,17 +131,17 @@ export default function HabitModal({ isOpen, onClose, onSave, habit, categories,
               </select>
             </div>
 
-            <div className="flex justify-center space-x-2 mt-6">
+            <div className="flex justify-center gap-2 mt-4 sm:mt-6">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-400 font-semibold transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-400 text-sm sm:text-base font-semibold transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-800 text-white font-semibold transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-800 text-white text-sm sm:text-base font-semibold transition-colors"
               >
                 {habit ? "Guardar cambios" : "Crear hábito"}
               </button>
