@@ -1,6 +1,12 @@
 import React from "react";
 import { Flame, MoreVertical, Plus, Minus, Check, Edit2, Trash2 } from "lucide-react";
-import { DAYS_OF_WEEK, lightenColor, isStreakAtRisk, getBorderColor } from "../utils/habitUtils";
+import {
+  DAYS_OF_WEEK,
+  lightenColor,
+  isStreakAtRisk,
+  getBorderColor,
+  getDisplayStreak,
+} from "../utils/habitUtils";
 
 export default function HabitCard({
   habit,
@@ -22,6 +28,7 @@ export default function HabitCard({
       : 0;
   const percent = Math.min((progress / target) * 100, 100);
   const isFullyDone = habit.completed_today;
+  const displayStreak = getDisplayStreak(habit);
 
   return (
     <div
@@ -30,7 +37,7 @@ export default function HabitCard({
         justCompleted[habit.id] ? "scale-[1.02]" : "scale-100"
       }`}
     >
-      {/* Relleno tipo carga */}
+      {/* Relleno tipo carga de progreso */}
       <div
         className="absolute inset-0 transition-all duration-500 ease-out"
         style={{
@@ -41,7 +48,7 @@ export default function HabitCard({
         }}
       />
 
-      {/* Check animado */}
+      {/* Check animado al completar */}
       {justCompleted[habit.id] && (
         <div className="absolute top-4 right-14 z-20 animate-pop-in">
           <div className="bg-green-600 rounded-full p-1.5">
@@ -51,9 +58,9 @@ export default function HabitCard({
       )}
 
       <div className="relative z-10">
-        {/* Fila Principal: Título, Menú y Stepper en Escritorio */}
+        {/* Fila Principal: Stepper (Escritorio), Título y Menú */}
         <div className="flex justify-between items-start gap-3">
-          <div className="flex items-start sm:items-center gap-4 w-full">
+          <div className="flex items-start sm:items-center gap-3 w-full">
             {/* Stepper visible solo en Escritorio (sm en adelante) */}
             {habit.target_per_period > 1 ? (
               <div className="hidden sm:flex items-center gap-2 shrink-0">
@@ -85,7 +92,7 @@ export default function HabitCard({
               />
             )}
 
-            {/* Título y Descripción (Ocupan el 100% en móvil) */}
+            {/* Título y Descripción (100% ancho en móvil) */}
             <div className="flex-1 pr-2">
               <h3
                 className={`text-lg md:text-2xl duration-200 ${
@@ -151,6 +158,8 @@ export default function HabitCard({
             >
               {habit.category?.name || "Sin categoría"}
             </span>
+
+            {/* Contador de Racha con color según estado de riesgo */}
             <div className="flex items-center gap-1">
               <Flame
                 className={
@@ -158,21 +167,27 @@ export default function HabitCard({
                 }
                 size={18}
               />
-              <span className={isStreakAtRisk(habit) ? "text-orange-900 text-xs" : "text-xs sm:text-sm"}>
-                {habit.current_streak ?? 0} días
+              <span
+                className={
+                  isStreakAtRisk(habit)
+                    ? "text-orange-900 text-xs"
+                    : "text-xs sm:text-sm font-medium text-gray-300"
+                }
+              >
+                {displayStreak} días
               </span>
             </div>
           </div>
 
-          {/* Stepper visible solo en Móvil (debajo del título) */}
+          {/* Stepper visible solo en Móvil */}
           {habit.target_per_period > 1 && (
-            <div className="flex sm:hidden items-center gap-2 px-2 py-1 rounded-lg">
+            <div className="flex sm:hidden items-center gap-2 bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
               <button
                 onClick={() => onUpdateProgress(habit, "decrement")}
                 disabled={habit.current_progress === 0}
-                className="w-5 h-5 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
               >
-                <Minus size={12} />
+                <Minus size={14} />
               </button>
               <span className="text-xs font-semibold text-white min-w-[32px] text-center">
                 {habit.current_progress ?? 0}/{habit.target_per_period}
@@ -180,15 +195,15 @@ export default function HabitCard({
               <button
                 onClick={() => onUpdateProgress(habit, "increment")}
                 disabled={habit.current_progress >= habit.target_per_period}
-                className="w-5 h-5 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
               >
-                <Plus size={12} />
+                <Plus size={14} />
               </button>
             </div>
           )}
         </div>
 
-        {/* Historial visual estático de 7 días (L M X J V S D) */}
+        {/* Historial de 7 días (L M X J V S D) */}
         {habit.week_history && (
           <div className="flex items-center gap-2.5 mt-3">
             {habit.week_history.map((completed, idx) => (
@@ -208,7 +223,7 @@ export default function HabitCard({
           </div>
         )}
 
-        {/* Barra de experiencia */}
+        {/* Barra de experiencia (XP) */}
         {habit.progress && (
           <div className="mt-4">
             <div className="flex justify-between text-xs sm:text-sm text-gray-400 mb-1">

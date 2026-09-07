@@ -9,7 +9,7 @@ export const DAYS_OF_WEEK = ["L", "M", "X", "J", "V", "S", "D"];
  * @param {number} amount - Porcentaje de aclarado (0 a 1).
  * @return {string} Color formateado en rgb().
  */
-export const lightenColor = (color, amount) => {
+export function lightenColor(color, amount) {
   try {
     let col = (color || "#4951E4").replace("#", "");
     if (col.length === 3) col = col.split("").map((c) => c + c).join("");
@@ -30,7 +30,7 @@ export const lightenColor = (color, amount) => {
  * @param {object} habit - Objeto del hábito.
  * @return {boolean} True si está en riesgo.
  */
-export const isStreakAtRisk = (habit) => {
+export function isStreakAtRisk(habit) {
   const hour = new Date().getHours();
   return hour >= 20 && !habit.completed_today && habit.current_streak > 0;
 };
@@ -40,7 +40,7 @@ export const isStreakAtRisk = (habit) => {
  * @param {Object} habit - Objeto del hábito.
  * @return {string} Color para el borde.
  */
-export const getBorderColor = (habit) => {
+export function getBorderColor(habit) {
   if (habit.completed_today) return habit.category?.color || "#6366f1";
   const target = habit.target_per_period || 1;
   const progress = habit.target_per_period > 1 ? habit.current_progress : 0;
@@ -48,3 +48,35 @@ export const getBorderColor = (habit) => {
   if (percent === 0) return "#d1d5db";
   return lightenColor(habit.category?.color || "#4951E4", 0.5 - percent * 0.3);
 };
+
+/**
+ * Calcula o formatea el valor real de la racha a mostrar.
+ * Si no se ha completado hoy, preserva el valor acumulado hasta ayer.
+ */
+export function getDisplayStreak(habit) {
+  if (!habit) return 0;
+
+  // Si la API o el estado trae current_streak, lo usamos directamente
+  if (typeof habit.current_streak === "number") {
+    return habit.current_streak;
+  }
+
+  // Si se calcula desde el historial de días
+  if (Array.isArray(habit.week_history)) {
+    let streak = 0;
+    const history = habit.week_history;
+    const startIndex = habit.completed_today ? history.length - 1 : history.length - 2;
+
+    for (let i = startIndex; i >= 0; i--) {
+      if (history[i]) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return habit.completed_today ? streak + 1 : streak;
+  }
+
+  return 0;
+}
