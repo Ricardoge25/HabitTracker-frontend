@@ -26,7 +26,7 @@ export default function HabitCard({
   return (
     <div
       style={{ borderColor: getBorderColor(habit) }}
-      className={`relative overflow-hidden bg-black rounded-xl border-2 p-6 md:p-8 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col ${
+      className={`relative overflow-hidden bg-black rounded-xl border-2 p-5 sm:p-6 md:p-8 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col ${
         justCompleted[habit.id] ? "scale-[1.02]" : "scale-100"
       }`}
     >
@@ -51,14 +51,16 @@ export default function HabitCard({
       )}
 
       <div className="relative z-10">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
+        {/* Fila Principal: Título, Menú y Stepper en Escritorio */}
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex items-start sm:items-center gap-4 w-full">
+            {/* Stepper visible solo en Escritorio (sm en adelante) */}
             {habit.target_per_period > 1 ? (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => onUpdateProgress(habit, "decrement")}
                   disabled={habit.current_progress === 0}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   <Minus size={16} />
                 </button>
@@ -68,7 +70,7 @@ export default function HabitCard({
                 <button
                   onClick={() => onUpdateProgress(habit, "increment")}
                   disabled={habit.current_progress >= habit.target_per_period}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   <Plus size={16} />
                 </button>
@@ -79,10 +81,12 @@ export default function HabitCard({
                 checked={!!habit.completed_today}
                 onChange={() => onToggleCompletion(habit)}
                 disabled={pendingHabits[habit.id]}
-                className="w-5 h-5 mt-2 shrink-0 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                className="w-5 h-5 mt-1 sm:mt-0 shrink-0 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait"
               />
             )}
-            <div>
+
+            {/* Título y Descripción (Ocupan el 100% en móvil) */}
+            <div className="flex-1 pr-2">
               <h3
                 className={`text-lg md:text-2xl duration-200 ${
                   habit.completed_today
@@ -92,31 +96,31 @@ export default function HabitCard({
               >
                 {habit.name}
               </h3>
-              <p className="text-sm md:text-base text-gray-400 mt-2">
+              <p className="text-xs sm:text-sm md:text-base text-gray-400 mt-1 sm:mt-2">
                 {habit.description || "Sin descripción"}
               </p>
             </div>
           </div>
 
           {/* Menú de opciones */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() =>
                 setOpenMenuId(openMenuId === habit.id ? null : habit.id)
               }
-              className="text-gray-400 hover:text-white transition cursor-pointer"
+              className="text-gray-400 hover:text-white transition cursor-pointer p-1"
             >
-              <MoreVertical size={24} />
+              <MoreVertical size={22} />
             </button>
 
             {openMenuId === habit.id && (
-              <div className="absolute right-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-20">
                 <button
                   onClick={() => {
                     setOpenMenuId(null);
                     onEditHabit(habit);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-t-xl"
+                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-t-xl cursor-pointer"
                 >
                   <Edit2 size={16} /> Editar
                 </button>
@@ -125,7 +129,7 @@ export default function HabitCard({
                     setOpenMenuId(null);
                     onDeleteHabit(habit.id);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-gray-700 rounded-b-xl"
+                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-gray-700 rounded-b-xl cursor-pointer"
                 >
                   <Trash2 size={16} /> Eliminar
                 </button>
@@ -134,29 +138,54 @@ export default function HabitCard({
           </div>
         </div>
 
-        {/* Info del hábito */}
-        <div className="flex items-center gap-3 mt-6 text-sm text-gray-400">
-          <span
-            className="border-2 px-2 py-1 text-xs rounded-full font-semibold"
-            style={{
-              borderColor: habit.category?.color || "#4951E4",
-              color: habit.category?.color || "#4951E4",
-              backgroundColor: `${habit.category?.color || "#4951E4"}30`,
-            }}
-          >
-            {habit.category?.name || "Sin categoría"}
-          </span>
-          <div className="flex items-center gap-1">
-            <Flame
-              className={
-                isStreakAtRisk(habit) ? "text-orange-900" : "text-orange-500"
-              }
-              size={20}
-            />
-            <span className={isStreakAtRisk(habit) ? "text-orange-900" : ""}>
-              {habit.current_streak ?? 0} días
+        {/* Info del hábito + Stepper para Móvil */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-4 sm:mt-6 text-sm text-gray-400">
+          <div className="flex items-center gap-3">
+            <span
+              className="border-2 px-2 py-0.5 text-xs rounded-full font-semibold"
+              style={{
+                borderColor: habit.category?.color || "#4951E4",
+                color: habit.category?.color || "#4951E4",
+                backgroundColor: `${habit.category?.color || "#4951E4"}30`,
+              }}
+            >
+              {habit.category?.name || "Sin categoría"}
             </span>
+            <div className="flex items-center gap-1">
+              <Flame
+                className={
+                  isStreakAtRisk(habit) ? "text-orange-900" : "text-orange-500"
+                }
+                size={18}
+              />
+              <span className={isStreakAtRisk(habit) ? "text-orange-900 text-xs" : "text-xs sm:text-sm"}>
+                {habit.current_streak ?? 0} días
+              </span>
+            </div>
           </div>
+
+          {/* Stepper visible solo en Móvil (debajo del título) */}
+          {habit.target_per_period > 1 && (
+            <div className="flex sm:hidden items-center gap-2 px-2 py-1 rounded-lg">
+              <button
+                onClick={() => onUpdateProgress(habit, "decrement")}
+                disabled={habit.current_progress === 0}
+                className="w-5 h-5 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="text-xs font-semibold text-white min-w-[32px] text-center">
+                {habit.current_progress ?? 0}/{habit.target_per_period}
+              </span>
+              <button
+                onClick={() => onUpdateProgress(habit, "increment")}
+                disabled={habit.current_progress >= habit.target_per_period}
+                className="w-5 h-5 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Historial visual estático de 7 días (L M X J V S D) */}
@@ -165,7 +194,7 @@ export default function HabitCard({
             {habit.week_history.map((completed, idx) => (
               <span
                 key={idx}
-                className="text-sm font-bold transition-colors"
+                className="text-xs sm:text-sm font-bold transition-colors"
                 style={{
                   color: completed
                     ? habit.category?.color || "#4951E4"
@@ -182,7 +211,7 @@ export default function HabitCard({
         {/* Barra de experiencia */}
         {habit.progress && (
           <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-400 mb-1">
+            <div className="flex justify-between text-xs sm:text-sm text-gray-400 mb-1">
               <span>Nivel {habit.progress.level}</span>
               <span>
                 {habit.progress.experience} / {habit.progress.xp_to_next} XP
