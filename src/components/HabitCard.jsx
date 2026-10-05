@@ -159,23 +159,31 @@ export default function HabitCard({
               {habit.category?.name || "Sin categoría"}
             </span>
 
-            {/* Contador de Racha con color según estado de riesgo */}
+            {/* FEATURE: indicador de racha con 3 estados visuales distintos */}
             <div className="flex items-center gap-1">
               <Flame
                 className={
-                  isStreakAtRisk(habit) ? "text-orange-900" : "text-orange-500"
+                  habit.current_streak === 0
+                    ? "text-gray-700"       // sin racha activa: gris
+                    : isStreakAtRisk(habit)
+                    ? "text-amber-500"      // racha activa pero en riesgo: amarillo
+                    : "text-orange-600"     // racha activa: naranja       
                 }
-                size={18}
+                size={20}
               />
-              <span
-                className={
-                  isStreakAtRisk(habit)
-                    ? "text-orange-900 text-xs"
-                    : "text-xs sm:text-sm font-medium text-gray-300"
-                }
-              >
-                {displayStreak} días
+              <span className={habit.current_streak === 0 ? "text-gray-600" : "text-gray-300"}>
+                {habit.current_streak ?? 0} días
               </span>
+
+              {/* FEATURE: badge de alerta "!" cuando la racha está en riesgo */}
+              {isStreakAtRisk(habit) && (
+                <span
+                  className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-base font-bold ml-1 animate-pulse"
+                  title="Tu racha está en riesgo - complétalo hoy para no perderla"
+                >
+                  !
+                </span>
+              )}
             </div>
           </div>
 
