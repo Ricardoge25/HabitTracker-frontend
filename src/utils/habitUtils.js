@@ -32,7 +32,7 @@ export function lightenColor(color, amount) {
  */
 export function isStreakAtRisk(habit) {
   const hour = new Date().getHours();
-  return hour >= 20 && !habit.completed_today && habit.current_streak > 0;
+  return hour >= 0 && !habit.completed_today && habit.yesterday_completed === false && habit.current_streak > 0;
 };
 
 /**
