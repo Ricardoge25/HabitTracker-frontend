@@ -37,11 +37,7 @@ export default function Register() {
         navigate("/login", { state: { registered: true } }); // Redirige al login después del registro
       }
     } catch (err) {
-      console.error("Error en el registro:", err.response?.data || err.message);
-      setError(
-        err.response?.data?.error ||
-        "Error al crear el usuario. Intenta de nuevo."
-      );
+      setError(extractApiError(err.response?.data, "Error al crear el usuario. Intenta de nuevo."));
     }
   };
 
