@@ -1,0 +1,41 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    env:
+      VITE_API_URL: http://localhost:8000/api/
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias (exactas del lockfile)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build de producción
+        run: npm run build
