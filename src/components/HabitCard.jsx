@@ -1,4 +1,3 @@
-import React from "react";
 import { Flame, MoreVertical, Plus, Minus, Check, Edit2, Trash2 } from "lucide-react";
 import {
   DAYS_OF_WEEK,
@@ -20,20 +19,16 @@ export default function HabitCard({
   onDeleteHabit,
 }) {
   const target = habit.target_per_period || 1;
-  const progress =
-    habit.target_per_period > 1
-      ? habit.current_progress
-      : habit.completed_today
-      ? 1
-      : 0;
+  const progress = habit.target_per_period > 1 ? habit.current_progress : habit.completed_today ? 1 : 0;
   const percent = Math.min((progress / target) * 100, 100);
   const isFullyDone = habit.completed_today;
-  const displayStreak = getDisplayStreak(habit);
+  const streak = getDisplayStreak(habit);
+  const atRisk = isStreakAtRisk(habit);
 
   return (
     <div
       style={{ borderColor: getBorderColor(habit) }}
-      className={`relative overflow-hidden bg-black rounded-xl border-2 p-5 sm:p-6 md:p-8 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col ${
+      className={`relative overflow-hidden bg-slate-950 rounded-xl border-2 p-5 sm:p-6 md:p-8 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col ${
         justCompleted[habit.id] ? "scale-[1.02]" : "scale-100"
       }`}
     >
@@ -76,14 +71,14 @@ export default function HabitCard({
                 </span>
                 <button
                   onClick={() => onUpdateProgress(habit, "increment")}
-                  disabled={habit.current_progress >= habit.target_per_period}
+                  disabled={habit.curren_progress >= habit.target_per_period}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   <Plus size={16} />
                 </button>
               </div>
             ) : (
-              <input
+              <input 
                 type="checkbox"
                 checked={!!habit.completed_today}
                 onChange={() => onToggleCompletion(habit)}
@@ -112,7 +107,7 @@ export default function HabitCard({
           {/* Menú de opciones */}
           <div className="relative shrink-0">
             <button
-              onClick={() =>
+              onClick={() => 
                 setOpenMenuId(openMenuId === habit.id ? null : habit.id)
               }
               className="text-gray-400 hover:text-white transition cursor-pointer p-1"
@@ -136,7 +131,7 @@ export default function HabitCard({
                     setOpenMenuId(null);
                     onDeleteHabit(habit.id);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-gray-700 rounded-b-xl cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-700 rounded-b-xl cursor-pointer"
                 >
                   <Trash2 size={16} /> Eliminar
                 </button>
@@ -145,38 +140,38 @@ export default function HabitCard({
           </div>
         </div>
 
-        {/* Info del hábito + Stepper para Móvil */}
+        {/* Info del hábito + Stepper para móvil */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 sm:mt-6 text-sm text-gray-400">
           <div className="flex items-center gap-3">
             <span
               className="border-2 px-2 py-0.5 text-xs rounded-full font-semibold"
               style={{
                 borderColor: habit.category?.color || "#4951E4",
-                color: habit.category?.color || "#4951E4",
+                color: habit.category?.color || "#49512E4",
                 backgroundColor: `${habit.category?.color || "#4951E4"}30`,
               }}
             >
               {habit.category?.name || "Sin categoría"}
             </span>
 
-            {/* FEATURE: indicador de racha con 3 estados visuales distintos */}
+            {/* Indicardor de racha con 3 estados visuales */}
             <div className="flex items-center gap-1">
-              <Flame
+              <Flame 
                 className={
-                  habit.current_streak === 0
-                    ? "text-gray-700"       // sin racha activa: gris
-                    : isStreakAtRisk(habit)
-                    ? "text-amber-500"      // racha activa pero en riesgo: amarillo
-                    : "text-orange-600"     // racha activa: naranja       
+                  streak === 0
+                    ? "text-gray-700" // Sin racha activa: gris
+                    : atRisk
+                    ? "text-amber-500" // racha activa pero en riesgo: amarilla 
+                    : "text-orange-600" // racha activa: naranja
                 }
                 size={20}
               />
-              <span className={habit.current_streak === 0 ? "text-gray-600" : "text-gray-300"}>
-                {habit.current_streak ?? 0} días
+              <span className={streak === 0 ? "text-gray-600" : "text-gray-300"}>
+                {streak} días
               </span>
 
-              {/* FEATURE: badge de alerta "!" cuando la racha está en riesgo */}
-              {isStreakAtRisk(habit) && (
+              {/* Badge de alerta "!" cuando la racha está en riesgo */}
+              {atRisk && (
                 <span
                   className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-base font-bold ml-1 animate-pulse"
                   title="Tu racha está en riesgo - complétalo hoy para no perderla"
@@ -203,7 +198,7 @@ export default function HabitCard({
               <button
                 onClick={() => onUpdateProgress(habit, "increment")}
                 disabled={habit.current_progress >= habit.target_per_period}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
               >
                 <Plus size={14} />
               </button>
@@ -213,21 +208,21 @@ export default function HabitCard({
 
         {/* Historial de 7 días (L M X J V S D) */}
         {habit.week_history && (
-          <div className="flex items-center gap-2.5 mt-3">
+          <div className="flex items-center gap-2 mt-3">
             {habit.week_history.map((completed, idx) => (
               <span
                 key={idx}
-                className="text-xs sm:text-sm font-bold transition-colors"
+                className="text-xs sm:text-sm font-semibold transition-colors"
                 style={{
                   color: completed
                     ? habit.category?.color || "#4951E4"
-                    : "#4b5563",
+                    : "#364153",
                 }}
                 title={DAYS_OF_WEEK[idx]}
               >
                 {DAYS_OF_WEEK[idx]}
               </span>
-            ))}
+            ))} 
           </div>
         )}
 
@@ -246,15 +241,11 @@ export default function HabitCard({
                 className="h-2 rounded-full transition-all duration-700 ease-out"
                 style={{
                   width: `${Math.min(
-                    (habit.progress.experience / habit.progress.xp_to_next) *
-                      100,
+                    (habit.progress.experience / habit.progress.xp_to_next) * 100,
                     100
                   )}%`,
-                  background: `linear-gradient(90deg, 
-                    ${lightenColor(
-                      habit.category?.color || "#4951E4",
-                      0.3
-                    )}, 
+                  background: `linear-gradient(90deg,
+                    ${lightenColor(habit.category?.color || "#4951E4", 0.3)},
                     ${habit.category?.color || "#4951E4"})`,
                 }}
               />
