@@ -1,11 +1,11 @@
 /**
- * Días de la semana en orden fijo de Lunes a Domingo.  
+ * Días de la semana en orden fijo de Lunes a Domingo.
  */
 export const DAYS_OF_WEEK = ["L", "M", "X", "J", "V", "S", "D"];
 
 /**
  * Aclara un color HEX sumándole un porcentaje de blanco.
- * @param {string} color - Color en formato HEX (#RRGGBB). 
+ * @param {string} color - Color en formato HEX (#RRGGBB).
  * @param {number} amount - Porcentaje de aclarado (0 a 1).
  * @return {string} Color formateado en rgb().
  */
@@ -15,25 +15,33 @@ export function lightenColor(color, amount) {
     if (col.length === 3) col = col.split("").map((c) => c + c).join("");
 
     const num = parseInt(col, 16);
-    let r = (num >> 16) + Math.round(255 * amount);
-    let g = ((num >> 8) & 0x00ff) + Math.round(255 * amount);
-    let b = (num & 0x0000ff) + Math.round(255 * amount);
+    const r = (num >> 16) + Math.round(255 * amount);
+    const g = ((num >> 8) & 0x00ff) + Math.round(255 * amount);
+    const b = (num & 0x0000ff) + Math.round(255 * amount);
 
     return `rgb(${Math.min(255, r)}, ${Math.min(255, g)}, ${Math.min(255, b)})`;
   } catch {
     return color || "#4951E4";
   }
-};
+}
 
 /**
- * Determina si la racha de un hábito está en riesgo (después de las 8:00 PM sin completar).
+ * Determina si la racha de un hábito está en riesgo, durante TODO el día.
+ *
+ * Regla de negocio (coherente con el backend, que tolera UN día fallado y rompe
+ * la racha con DOS seguidos): hay riesgo cuando existe una racha activa, ayer no
+ * se completó y hoy tampoco. Si hoy tampoco se completa, la racha se rompe.
+ *
  * @param {object} habit - Objeto del hábito.
  * @return {boolean} True si está en riesgo.
  */
 export function isStreakAtRisk(habit) {
-  const hour = new Date().getHours();
-  return hour >= 0 && !habit.completed_today && habit.yesterday_completed === false && habit.current_streak > 0;
-};
+  return (
+    habit.current_streak > 0 &&
+    !habit.completed_today &&
+    habit.yesterday_completed === false
+  );
+}
 
 /**
  * Calcula el color del borde de la tarjeta del hábito según su progreso.
@@ -47,7 +55,7 @@ export function getBorderColor(habit) {
   const percent = progress / target;
   if (percent === 0) return "#d1d5db";
   return lightenColor(habit.category?.color || "#4951E4", 0.5 - percent * 0.3);
-};
+}
 
 /**
  * Calcula o formatea el valor real de la racha a mostrar.

@@ -1,87 +1,69 @@
-import { useEffect, useState } from "react";
-import api from "../api/axios";
-import { useAuth } from "../context/AuthContext";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, Tags } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../hooks/useAuth";
+import { extractApiError } from "../utils/apiErrors";
 import HabitModal from "./HabitModal";
 import HabitCard from "./HabitCard";
-import { useNavigate } from "react-router-dom";
+import ConfirmDialog from "./ConfirmDialog";
+
+// Pendientes primero. Devuelve una copia: nunca se muta el estado ni la respuesta.
+const sortHabits = (list) =>
+  [...list].sort((a, b) => Number(a.completed_today) - Number(b.completed_today));
 
 export default function HabitList({ onProgressChange, onStatsChange }) {
-  const [habits, setHabits] = useState([]);
   const { user } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [editingHabit, setEditingHabit] = useState(null);
-  const [justCompleted, setJustCompleted] = useState({});
-  const [pendingHabits, setPendingHabits] = useState({});
-  const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
 
-  const fetchCategories = async () => {
+  const [habits, setHabits] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState(null);
+  const [habitToDelete, setHabitToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [justCompleted, setJustCompleted] = useState({});
+  const [pendingHabits, setPendingHabits] = useState({});
+
+  // ---------- Carga de datos ----------
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get("/categories/");
       setCategories(response.data);
     } catch (error) {
       console.error("❌ Error al obtener categorías:", error);
     }
-  };
-
-  useEffect(() => {
-    fetchCategories();
   }, []);
 
-  const fetchHabits = async () => {
+  const fetchHabits = useCallback(async () => {
     try {
       const res = await api.get("/habits/today/");
-      const sortedHabits = res.data.sort(
-        (a, b) => a.completed_today - b.completed_today
-      );
-      setHabits(sortedHabits);
-
-      if (onStatsChange) {
-        const completed = sortedHabits.filter((h) => h.completed_today).length;
-        onStatsChange({ completed, total: sortedHabits.length });
-      }
+      setHabits(sortHabits(res.data));
     } catch (err) {
       console.error("❌ Error cargando hábitos", err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     if (user) fetchHabits();
-  }, [user]);
+  }, [user, fetchHabits]);
 
-  const handleCreateHabit = async (habitData) => {
-    try {
-      if (editingHabit) {
-        const response = await api.patch(
-          `/habits/${editingHabit.id}/`,
-          habitData
-        );
-        if (response.status === 200) {
-          setHabits((prev) =>
-            prev.map((h) => (h.id === editingHabit.id ? response.data : h))
-          );
-          toast.success("Hábito actualizado correctamente");
-        }
-      } else {
-        const response = await api.post("/habits/", habitData);
-        if (response.status === 201) {
-          setHabits((prev) => [...prev, response.data]);
-          toast.success("🎯 Nuevo hábito creado");
-        }
-      }
+  // Las estadísticas son estado DERIVADO de `habits`: se calculan, no se guardan aparte.
+  useEffect(() => {
+    if (!onStatsChange) return;
+    onStatsChange({
+      completed: habits.filter((h) => h.completed_today).length,
+      total: habits.length,
+    });
+  }, [habits, onStatsChange]);
 
-      await fetchHabits();
-      setEditingHabit(null);
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error("Error al crear/editar hábito", err);
-      toast.error("❌ No se pudo crear/editar el hábito");
-    }
-  };
-
+  // ---------- Modal de crear/editar ----------
   const handleNewHabit = () => {
     setEditingHabit(null);
     setIsModalOpen(true);
@@ -97,18 +79,52 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     setEditingHabit(null);
   };
 
-  const handleDeleteHabit = async (habitId) => {
+  // ---------- CRUD ----------
+  const handleSaveHabit = async (habitData) => {
+    const isEditing = Boolean(editingHabit);
     try {
-      const res = await api.delete(`/habits/${habitId}/`);
-      if (res.status === 204) {
-        setHabits((prev) => prev.filter((h) => h.id !== habitId));
-        toast.success("🗑️ Hábito eliminado correctamente");
+      if (isEditing) {
+        await api.patch(`/habits/${editingHabit.id}/`, habitData);
+      } else {
+        await api.post("/habits/", habitData);
       }
+      toast.success(isEditing ? "Hábito actualizado correctamente" : "🎯 Nuevo hábito creado");
+      await fetchHabits(); // fuente de verdad: el servidor
+      handleCloseModal();
     } catch (err) {
-      toast.error("❌ Error al eliminar el hábito");
+      console.error("Error al guardar hábito", err);
+      // Solo mostramos el mensaje del servidor si es un error de validación (400)
+      toast.error(
+        err.response?.status === 400
+          ? extractApiError(err.response.data)
+          : "❌ No se pudo guardar el hábito"
+      );
     }
   };
 
+  // Paso 1: la tarjeta pide borrar -> solo abrimos la confirmación
+  const requestDeleteHabit = (habitId) => {
+    setHabitToDelete(habits.find((h) => h.id === habitId) ?? null);
+  };
+
+  // Paso 2: el usuario confirma -> ahora sí se llama a la API
+  const confirmDeleteHabit = async () => {
+    if (!habitToDelete) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/habits/${habitToDelete.id}/`);
+      setHabits((prev) => prev.filter((h) => h.id !== habitToDelete.id));
+      toast.success("🗑️ Hábito eliminado correctamente");
+      setHabitToDelete(null);
+    } catch (err) {
+      toast.error("❌ Error al eliminar el hábito");
+      console.error(err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // ---------- Completar hábitos ----------
   const triggerCompletionPulse = (habitId) => {
     setJustCompleted((prev) => ({ ...prev, [habitId]: true }));
     setTimeout(() => {
@@ -116,127 +132,93 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     }, 3000);
   };
 
-  const handleToggleCompletion = async (habit) => {
-    if (pendingHabits[habit.id]) return;
-
-    setPendingHabits((prev) => ({ ...prev, [habit.id]: true }));
-
+  // Evita dobles clics mientras hay una petición en curso para ese hábito
+  const withPending = async (habitId, action) => {
+    if (pendingHabits[habitId]) return;
+    setPendingHabits((prev) => ({ ...prev, [habitId]: true }));
     try {
-      const nowIso = new Date().toISOString();
-      const res = await api.post(`/habits/${habit.id}/toggle-completion/`, {
-        date: nowIso,
-        completed: !habit.completed_today,
-      });
+      await action();
+    } finally {
+      setPendingHabits((prev) => ({ ...prev, [habitId]: false }));
+    }
+  };
 
-      const { record, habit_progress, global_progress, current_streak } =
-        res.data;
-
-      setHabits((prev) => {
-        const updated = prev.map((h) =>
-          h.id === habit.id
+  // Aplica al estado local lo que respondió el servidor
+  const applyServerResult = (habitId, data, extra = {}) => {
+    const { record, habit_progress, current_streak } = data;
+    setHabits((prev) =>
+      sortHabits(
+        prev.map((h) =>
+          h.id === habitId
             ? {
                 ...h,
                 completed_today: record.completed,
                 progress: habit_progress,
                 current_streak,
+                ...extra,
               }
             : h
-        );
+        )
+      )
+    );
+  };
 
-        const sorted = updated.sort(
-          (a, b) => a.completed_today - b.completed_today
-        );
-
-        if (onStatsChange) {
-          const completed = sorted.filter((h) => h.completed_today).length;
-          onStatsChange({ completed, total: sorted.length });
-        }
-
-        return sorted;
-      });
-
-      if (record.completed && !habit.completed_today) {
-        triggerCompletionPulse(habit.id);
-        toast.success(
-          `Completaste "${habit.name}" hoy (+${habit_progress.experience} XP)`
-        );
-      } else {
-        toast(`Desmarcaste "${habit.name}" (-25 XP)`, {
-          icon: "❌",
-          style: { color: "#fff" },
+  const handleToggleCompletion = (habit) =>
+    withPending(habit.id, async () => {
+      try {
+        const { data } = await api.post(`/habits/${habit.id}/toggle-completion/`, {
+          completed: !habit.completed_today,
         });
-      }
 
-      if (onProgressChange) onProgressChange(global_progress);
-    } catch (error) {
-      console.error("❌ Error al actualizar el hábito", error);
-      toast.error("Error al actualizar el hábito");
-    } finally {
-      setPendingHabits((prev) => ({ ...prev, [habit.id]: false }));
-    }
-  };
+        applyServerResult(habit.id, data);
 
-  const handleUpdateProgress = async (habit, direction) => {
-    if (pendingHabits[habit.id]) return;
-
-    setPendingHabits((prev) => ({ ...prev, [habit.id]: true }));
-
-    try {
-      const res = await api.post(`/habits/${habit.id}/update-progress/`, {
-        direction,
-      });
-
-      const { record, habit_progress, global_progress, current_streak } =
-        res.data;
-
-      setHabits((prev) => {
-        const updated = prev.map((h) =>
-          h.id === habit.id
-            ? {
-                ...h,
-                completed_today: record.completed,
-                current_progress: record.progress,
-                progress: habit_progress,
-                current_streak,
-              }
-            : h
-        );
-
-        const sorted = updated.sort(
-          (a, b) => a.completed_today - b.completed_today
-        );
-
-        if (onStatsChange) {
-          const completed = sorted.filter((h) => h.completed_today).length;
-          onStatsChange({ completed, total: sorted.length });
+        if (data.record.completed && !habit.completed_today) {
+          triggerCompletionPulse(habit.id);
+          toast.success(
+            `Completaste "${habit.name}" hoy (+${data.habit_progress.experience} XP)`
+          );
+        } else {
+          toast(`Desmarcaste "${habit.name}" (-25 XP)`, {
+            icon: "❌",
+            style: { color: "#fff" },
+          });
         }
 
-        return sorted;
-      });
-
-      if (record.completed && !habit.completed_today) {
-        triggerCompletionPulse(habit.id);
-        toast.success(
-          `Completaste "${habit.name}" hoy (+${habit_progress.experience} XP)`
-        );
+        if (onProgressChange) onProgressChange(data.global_progress);
+      } catch (error) {
+        console.error("❌ Error al actualizar el hábito", error);
+        toast.error("Error al actualizar el hábito");
       }
+    });
 
-      if (onProgressChange) onProgressChange(global_progress);
-    } catch (error) {
-      console.error("❌ Error al actualizar el progreso", error);
-      toast.error("Error al actualizar el progreso");
-    } finally {
-      setPendingHabits((prev) => ({ ...prev, [habit.id]: false }));
-    }
-  };
+  const handleUpdateProgress = (habit, direction) =>
+    withPending(habit.id, async () => {
+      try {
+        const { data } = await api.post(`/habits/${habit.id}/update-progress/`, {
+          direction,
+        });
+
+        applyServerResult(habit.id, data, { current_progress: data.record.progress });
+
+        if (data.record.completed && !habit.completed_today) {
+          triggerCompletionPulse(habit.id);
+          toast.success(
+            `Completaste "${habit.name}" hoy (+${data.habit_progress.experience} XP)`
+          );
+        }
+
+        if (onProgressChange) onProgressChange(data.global_progress);
+      } catch (error) {
+        console.error("❌ Error al actualizar el progreso", error);
+        toast.error("Error al actualizar el progreso");
+      }
+    });
 
   return (
     <section className="w-full max-w-6xl">
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white">
-          Tus Hábitos
-        </h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">Tus Hábitos</h2>
         <div className="flex gap-2 sm:gap-4">
           <button
             onClick={() => navigate("/categories")}
@@ -270,7 +252,7 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
               onToggleCompletion={handleToggleCompletion}
               onUpdateProgress={handleUpdateProgress}
               onEditHabit={handleEditHabit}
-              onDeleteHabit={handleDeleteHabit}
+              onDeleteHabit={requestDeleteHabit}
             />
           ))}
         </div>
@@ -280,11 +262,28 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
       <HabitModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSave={handleCreateHabit}
+        onSave={handleSaveHabit}
         habit={editingHabit}
         categories={categories}
         fetchCategories={fetchCategories}
       />
+
+      {/* Confirmación de borrado */}
+      {habitToDelete && (
+        <ConfirmDialog
+          title="¿Eliminar este hábito?"
+          message={
+            <>
+              Vas a eliminar <strong className="text-white">{habitToDelete.name}</strong>. Se
+              borrarán también su historial y su progreso. Esta acción no se puede deshacer.
+            </>
+          }
+          confirmLabel="Eliminar hábito"
+          onConfirm={confirmDeleteHabit}
+          onCancel={() => setHabitToDelete(null)}
+          loading={isDeleting}
+        />
+      )}
     </section>
   );
 }
