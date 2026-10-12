@@ -11,34 +11,33 @@ import Categories from './pages/Categories';
 function App() {
   return (
     <>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Rutas Públicas */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+      <Router>
+        <Routes>
+          {/* Rutas Públicas */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-            {/* Rutas Protegidas */}
-            <Route 
-              path="/home" 
-              element={
-                <ProtectRoute>
-                  <Dashboard /> 
-                </ProtectRoute>
-              }
-            />
-            <Route
-              path="/categories"
-              element={
-                <ProtectRoute>
-                  <Categories />
-                </ProtectRoute>
-              }
-            />
-          </Routes>
-        </Router>
-      </AuthProvider>
+          {/* Rutas Protegidas */}
+          <Route 
+            path="/home" 
+            element={
+              <ProtectRoute>
+                <Dashboard /> 
+              </ProtectRoute>
+            }
+          />
+          <Route
+            path="/categories"
+            element={
+              <ProtectRoute>
+                <Categories />
+              </ProtectRoute>
+            }
+          />
+        </Routes>
+      </Router>
+      
       <Toaster 
           position="top-center"
           toastOptions={{

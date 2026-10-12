@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
@@ -13,7 +13,7 @@ export default function Login() {
 
   // Mostrar notificación si el usuario acaba de registrarse
   useEffect(() => {
-    if(location.state?.registered){
+    if (location.state?.registered) {
       toast.success("Registro exitoso. ¡Inicia sesión para continuar!");
     }
   }, [location]);
@@ -38,7 +38,7 @@ export default function Login() {
       <h1 className="text-4xl font-extrabold mb-2 font-mono">
         Habit <span className="text-indigo-600">Tracker</span>
       </h1>
-      <p className="text-gray-400 mb-8">Construye mejores hábito, un día a la vez</p>
+      <p className="text-gray-400 mb-8">Construye mejores hábitos, un día a la vez</p>
 
       {/* Caja de Login */}
       <div className="w-full max-w-md rounded-xl shadow-lg p-8 border-2 border-gray-300">
@@ -70,8 +70,8 @@ export default function Login() {
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="w-full bg-indigo-600 hover:bg-indigo-800 text-white py-2 mt-2 rounded-lg font-semibold transition-colors"
           >
             Iniciar Sesión
@@ -91,7 +91,6 @@ export default function Login() {
             Regístrate aquí
           </Link>
         </p>
-        
       </div>
     </div>
   );
