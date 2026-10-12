@@ -3,10 +3,15 @@ import { useAuth } from "../hooks/useAuth";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
+const SESSION_MESSAGES = {
+  idle: "Tu sesión se cerró por inactividad. Inicia sesión de nuevo.",
+  expired: "Tu sesión expiró. Inicia sesión de nuevo.",
+};
+
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth();
+  const { login, logoutReason } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const location = useLocation();
@@ -46,6 +51,17 @@ export default function Login() {
         <p className="text-sm text-gray-400 mb-6">
           Ingresa tus credenciales para acceder a tu cuenta.
         </p>
+
+        {/* Motivo por el que se cerró la sesión anterior */}
+        {logoutReason && SESSION_MESSAGES[logoutReason] && (
+          <p
+            role="status"
+            className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300"
+          >
+            {SESSION_MESSAGES[logoutReason]}
+          </p>
+        )}
+
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
