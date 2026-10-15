@@ -1,8 +1,153 @@
 @import "tailwindcss";
 
-
 @theme {
-  --color-primary: #607AFB;
+  /* Superficies: del fondo al elemento más elevado */
+  --color-canvas: #0d1117;
+  --color-surface: #151b26;
+  --color-surface-2: #1c2433;
+  --color-line: #263044;
+  --color-line-strong: #364159;
+
+  /* Texto */
+  --color-ink: #e8ecf4;
+  --color-ink-muted: #9aa6bd;
+  --color-ink-faint: #66728c;
+
+  /* Acento y estados */
+  --color-accent: #6366f1;
+  --color-accent-hover: #5558e6;
+  --color-accent-soft: #a5b4fc;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+}
+
+/* Fondo base de toda la app */
+@layer base {
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/*
+ * Primitivas reutilizables, en CSS plano con las variables de @theme.
+ * (En Tailwind v4 no se puede hacer @apply de otra clase propia, por eso no se usa @apply aquí.)
+ * Están en @layer components: las utilidades de Tailwind (pl-10, border-danger...) las pisan.
+ */
+@layer components {
+  /* ---------- Botones ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .btn-primary {
+    background-color: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--color-accent) 70%, transparent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--color-line-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-surface-2);
+  }
+
+  .btn-danger {
+    background-color: var(--color-danger);
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: #dc2626;
+  }
+
+  /* ---------- Campos de formulario ---------- */
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-line-strong);
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+    /* 16px: por debajo, iOS hace zoom al enfocar el campo */
+    font-size: 1rem;
+    line-height: 1.5rem;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+  }
+  .field::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .field:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-line-strong));
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+  .field[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 25%, transparent);
+  }
+  /* Chrome pinta los campos autocompletados de blanco/amarillo: lo neutralizamos */
+  .field:-webkit-autofill,
+  .field:-webkit-autofill:hover,
+  .field:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--color-ink);
+    caret-color: var(--color-ink);
+    box-shadow: 0 0 0 1000px var(--color-surface-2) inset;
+    transition: background-color 9999s ease-out 0s;
+  }
+
+  /* ---------- Tarjetas ---------- */
+  .card {
+    border-radius: 1rem;
+    border: 1px solid var(--color-line);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-surface-2) 55%, var(--color-surface)) 0%,
+      var(--color-surface) 100%
+    );
+  }
+  /* Halo violeta: separa la tarjeta del fondo sin recurrir a bordes blancos */
+  .card-glow {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-accent) 14%, transparent),
+      0 28px 70px -28px color-mix(in srgb, var(--color-accent) 60%, transparent),
+      0 12px 32px -12px rgb(0 0 0 / 0.6);
+  }
 }
 
 @keyframes pop-in {
