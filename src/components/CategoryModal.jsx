@@ -1,100 +1,154 @@
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "react-hot-toast";
+import Modal from "./Modal";
 
+const DEFAULT_COLOR = "#6366f1";
+
+// Paleta pensada para el fondo oscuro. El selector libre queda como alternativa.
+const PALETTE = [
+  "#6366f1", // índigo
+  "#8b5cf6", // violeta
+  "#ec4899", // rosa
+  "#ef4444", // rojo
+  "#f97316", // naranja
+  "#f59e0b", // ámbar
+  "#22c55e", // verde
+  "#14b8a6", // turquesa
+  "#06b6d4", // cian
+  "#3b82f6", // azul
+];
+
+/**
+ * Modal para crear o editar una categoría.
+ * Sin la prop `category` => modo "crear". `onSave` debe devolver una promesa
+ * para que el botón muestre "Guardando…" mientras se espera la respuesta.
+ */
 export default function CategoryModal({ isOpen, onClose, onSave, category }) {
+  const formId = useId();
   const isEditing = Boolean(category);
 
-  const [categoryData, setCategoryData] = useState({
-    name: "",
-    color: "#4951E4",
-  });
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Si hay categoría para editar -> lo carga en el formulario
+  // Cargar la categoría al editar; limpiar al crear
   useEffect(() => {
-    if (category) {
-      setCategoryData({
-        name: category.name || "",
-        color: category.color || "#4951E4",
-      });
-    } else {
-      setCategoryData({ name: "", color: "#4951E4" });
-    }
-  }, [category]);
+    setName(category?.name || "");
+    setColor(category?.color || DEFAULT_COLOR);
+  }, [category, isOpen]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCategoryData({ ...categoryData, [name]: value });
+  const handleClose = () => {
+    if (!isSaving) onClose();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
 
-    if(!categoryData.name.trim()){
+    if (!name.trim()) {
       toast.error("El nombre de la categoría es obligatorio");
       return;
     }
 
-    // Enviamos los datos al componente Padre (Categories.jsx)
-    onSave(categoryData);
+    setIsSaving(true);
+    try {
+      await onSave({ name: name.trim(), color });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-black p-6 rounded-2xl w-[90%] max-w-md relative shadow-2xl border-2 border-gray-300">
-        {/* Botón cerrar */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 text-gray-100 hover:text-white transition"
-        >
-          <X size={22} />
-        </button>
-
-        {/* Título */}
-        <h2 className="text-3xl font-semibold text-white mb-8 text-center font-mono">
-          {isEditing ? "Editar Categoría" : "Nueva Categoría"}
-        </h2>
-
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">
-              Nombre de la categoría
-            </label>
-            <input
-              type="text"
-              name="name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg font-medium bg-gray-200 text-gray-900 focus:outline-none focus:ring-3 focus:ring-indigo-500 placeholder:text-gray-600"
-              placeholder="Ej: Salud, Trabajo, Lectura..."
-              value={categoryData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-base font-semibold ml-1 mb-1 text-gray-100">
-              Color de la categoría
-            </label>
-            <input
-              type="color"
-              name="color"
-              className="w-full h-10 p-1 rounded-sm bg-gray-900 cursor-pointer"
-              value={categoryData.color}
-              onChange={handleChange}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="mt-2 bg-indigo-600 hover:bg-indigo-800 text-white py-2.5 rounded-lg font-medium transition-all"
-          >
-            {isEditing ? "Guardar Cambios" : "Crear Categoría"}
+    <Modal
+      title={isEditing ? "Editar categoría" : "Nueva categoría"}
+      description="Agrupa tus hábitos con un nombre y un color."
+      onClose={handleClose}
+      maxWidth="max-w-md"
+      footer={
+        <>
+          <button type="button" onClick={handleClose} disabled={isSaving} className="btn btn-secondary">
+            Cancelar
           </button>
-        </form>
-      </div>
-    </div>
+          <button type="submit" form={formId} disabled={isSaving} className="btn btn-primary">
+            {isSaving ? "Guardando…" : isEditing ? "Guardar cambios" : "Crear categoría"}
+          </button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor={`${formId}-name`} className="mb-1.5 block text-sm font-medium text-ink">
+            Nombre
+          </label>
+          <input
+            id={`${formId}-name`}
+            type="text"
+            className="field"
+            placeholder="Ej: Salud, Trabajo, Lectura…"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={60}
+            required
+            autoFocus
+          />
+        </div>
+
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-ink">Color</legend>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {PALETTE.map((swatch) => {
+              const selected = swatch.toLowerCase() === color.toLowerCase();
+              return (
+                <button
+                  key={swatch}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={`Color ${swatch}`}
+                  onClick={() => setColor(swatch)}
+                  className={`h-9 w-9 cursor-pointer rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
+                    selected ? "ring-2 ring-ink ring-offset-2 ring-offset-surface" : "hover:scale-110"
+                  }`}
+                  style={{ backgroundColor: swatch }}
+                />
+              );
+            })}
+
+            {/* Selector libre */}
+            <label
+              title="Elegir otro color"
+              className="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line-strong text-lg text-ink-muted transition hover:border-accent-soft hover:text-ink"
+            >
+              +
+              <input
+                type="color"
+                aria-label="Elegir otro color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        {/* Vista previa tal como se verá en las tarjetas de hábitos */}
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink">Vista previa</p>
+          <span
+            className="inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+            style={{
+              color,
+              backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
+              borderColor: `color-mix(in srgb, ${color} 35%, transparent)`,
+            }}
+          >
+            {name.trim() || "Nombre de la categoría"}
+          </span>
+        </div>
+      </form>
+    </Modal>
   );
 }

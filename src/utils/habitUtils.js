@@ -1,7 +1,25 @@
 /**
- * Días de la semana en orden fijo de Lunes a Domingo.
+ * Días de la semana, de lunes a domingo.
  */
 export const DAYS_OF_WEEK = ["L", "M", "X", "J", "V", "S", "D"];
+
+/**
+ * Los 7 días que muestra el historial: de hace 6 días hasta HOY (así lo devuelve el backend).
+ * Cada letra se calcula con la fecha real; antes se rotulaba siempre L-M-X-J-V-S-D
+ * y las letras no coincidían con los días.
+ * @return {{label: string, name: string, isToday: boolean}[]}
+ */
+export function getLastSevenDays(today = new Date()) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return {
+      label: DAYS_OF_WEEK[(d.getDay() + 6) % 7], // getDay(): 0 = domingo
+      name: d.toLocaleDateString("es-CO", { weekday: "long" }),
+      isToday: i === 6,
+    };
+  });
+}
 
 /**
  * Aclara un color HEX sumándole un porcentaje de blanco.
@@ -41,20 +59,6 @@ export function isStreakAtRisk(habit) {
     !habit.completed_today &&
     habit.yesterday_completed === false
   );
-}
-
-/**
- * Calcula el color del borde de la tarjeta del hábito según su progreso.
- * @param {Object} habit - Objeto del hábito.
- * @return {string} Color para el borde.
- */
-export function getBorderColor(habit) {
-  if (habit.completed_today) return habit.category?.color || "#6366f1";
-  const target = habit.target_per_period || 1;
-  const progress = habit.target_per_period > 1 ? habit.current_progress : 0;
-  const percent = progress / target;
-  if (percent === 0) return "#d1d5db";
-  return lightenColor(habit.category?.color || "#4951E4", 0.5 - percent * 0.3);
 }
 
 /**

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Tags } from "lucide-react";
+import { Plus, Sprout } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../hooks/useAuth";
 import { extractApiError } from "../utils/apiErrors";
@@ -15,9 +14,9 @@ const sortHabits = (list) =>
 
 export default function HabitList({ onProgressChange, onStatsChange }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [habits, setHabits] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [categories, setCategories] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
@@ -43,6 +42,8 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
       setHabits(sortHabits(res.data));
     } catch (err) {
       console.error("❌ Error cargando hábitos", err);
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -93,7 +94,6 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
       handleCloseModal();
     } catch (err) {
       console.error("Error al guardar hábito", err);
-      // Solo mostramos el mensaje del servidor si es un error de validación (400)
       toast.error(
         err.response?.status === 400
           ? extractApiError(err.response.data)
@@ -102,12 +102,10 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     }
   };
 
-  // Paso 1: la tarjeta pide borrar -> solo abrimos la confirmación
   const requestDeleteHabit = (habitId) => {
     setHabitToDelete(habits.find((h) => h.id === habitId) ?? null);
   };
 
-  // Paso 2: el usuario confirma -> ahora sí se llama a la API
   const confirmDeleteHabit = async () => {
     if (!habitToDelete) return;
     setIsDeleting(true);
@@ -132,7 +130,6 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     }, 3000);
   };
 
-  // Evita dobles clics mientras hay una petición en curso para ese hábito
   const withPending = async (habitId, action) => {
     if (pendingHabits[habitId]) return;
     setPendingHabits((prev) => ({ ...prev, [habitId]: true }));
@@ -143,7 +140,6 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     }
   };
 
-  // Aplica al estado local lo que respondió el servidor
   const applyServerResult = (habitId, data, extra = {}) => {
     const { record, habit_progress, current_streak } = data;
     setHabits((prev) =>
@@ -215,32 +211,48 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     });
 
   return (
-    <section className="w-full max-w-6xl">
-      {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white">Tus Hábitos</h2>
-        <div className="flex gap-2 sm:gap-4">
-          <button
-            onClick={() => navigate("/categories")}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border-2 border-gray-200 text-white text-sm sm:text-base font-medium hover:bg-white hover:text-indigo-600 px-3 sm:px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
-          >
-            <Tags size={16} />
-            Categorías
-          </button>
-          <button
-            onClick={handleNewHabit}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-indigo-600 text-sm sm:text-base font-medium hover:bg-indigo-600 hover:text-white px-3 sm:px-4 py-2 rounded-xl shadow transition-all cursor-pointer"
-          >
-            <Plus size={16} />
-            Nuevo Hábito
-          </button>
+    <section className="w-full" aria-labelledby="habits-title">
+      {/* Encabezado de la sección */}
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h2 id="habits-title" className="text-xl font-bold text-ink sm:text-2xl">
+            Tus hábitos
+          </h2>
+          {loaded && habits.length > 0 && (
+            <p className="mt-0.5 text-sm text-ink-muted">
+              {habits.length} {habits.length === 1 ? "hábito" : "hábitos"} activos
+            </p>
+          )}
         </div>
+        <button type="button" onClick={handleNewHabit} className="btn btn-primary">
+          <Plus size={18} />
+          Nuevo hábito
+        </button>
       </div>
 
-      {habits.length === 0 ? (
-        <p className="text-gray-400">No tienes hábitos registrados todavía.</p>
+      {/* Contenido: carga, vacío o lista */}
+      {!loaded ? (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-busy="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="card h-44 animate-pulse" />
+          ))}
+        </div>
+      ) : habits.length === 0 ? (
+        <div className="card flex flex-col items-center px-6 py-12 text-center">
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft">
+            <Sprout size={28} />
+          </span>
+          <h3 className="text-lg font-semibold text-ink">Aún no tienes hábitos</h3>
+          <p className="mt-1 max-w-xs text-sm text-ink-muted">
+            Empieza con uno pequeño. La constancia pesa más que la intensidad.
+          </p>
+          <button type="button" onClick={handleNewHabit} className="btn btn-primary mt-6">
+            <Plus size={18} />
+            Crear mi primer hábito
+          </button>
+        </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {habits.map((habit) => (
             <HabitCard
               key={habit.id}
@@ -258,7 +270,6 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
         </div>
       )}
 
-      {/* Modal para crear/editar hábito */}
       <HabitModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -268,13 +279,12 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
         fetchCategories={fetchCategories}
       />
 
-      {/* Confirmación de borrado */}
       {habitToDelete && (
         <ConfirmDialog
           title="¿Eliminar este hábito?"
           message={
             <>
-              Vas a eliminar <strong className="text-white">{habitToDelete.name}</strong>. Se
+              Vas a eliminar <strong className="text-ink">{habitToDelete.name}</strong>. Se
               borrarán también su historial y su progreso. Esta acción no se puede deshacer.
             </>
           }
