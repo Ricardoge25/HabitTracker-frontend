@@ -1,14 +1,14 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
+import SessionGuard from "./SessionGuard";
 
 export default function ProtectRoute({ children }) {
   const { user } = useAuth();
 
   if (!user) {
-    // Si no hay usuario, lo redirige al login
     return <Navigate to="/login" replace />;
   }
 
-  return children; // Si hay usuario, renderiza la ruta normal.
-  
+  // El guardia solo existe mientras hay sesión
+  return <SessionGuard>{children}</SessionGuard>;
 }

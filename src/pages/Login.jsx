@@ -1,98 +1,129 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { AlertCircle, Clock, Loader2, User } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import AuthLayout from "../components/AuthLayout";
+import PasswordInput from "../components/PasswordInput";
+
+const SESSION_MESSAGES = {
+  idle: "Tu sesión se cerró por inactividad. Inicia sesión de nuevo.",
+  expired: "Tu sesión expiró. Inicia sesión de nuevo.",
+};
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth();
-  const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, logoutReason } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
 
   // Mostrar notificación si el usuario acaba de registrarse
   useEffect(() => {
-    if(location.state?.registered){
+    if (location.state?.register) {
       toast.success("Registro exitoso. ¡Inicia sesión para continuar!");
     }
   }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
+    setIsSubmitting(true);
 
     try {
-      const ok = await login(username, password);
-      if (ok) {
-        navigate("/home"); // Redirige al dashboard después del login
-      }
+      const ok = await login(username.trim(), password);
+      if (ok) navigate("/home");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-black text-white px-4">
-      {/* Titulo principal */}
-      <h1 className="text-4xl font-extrabold mb-2 font-mono">
-        Habit <span className="text-indigo-600">Tracker</span>
-      </h1>
-      <p className="text-gray-400 mb-8">Construye mejores hábito, un día a la vez</p>
-
-      {/* Caja de Login */}
-      <div className="w-full max-w-md rounded-xl shadow-lg p-8 border-2 border-gray-300">
-        <h2 className="text-3xl font-semibold mb-2">Iniciar Sesión</h2>
-        <p className="text-sm text-gray-400 mb-6">
-          Ingresa tus credenciales para acceder a tu cuenta.
-        </p>
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-base font-semibold ml-1 mb-1">Usuario</label>
-            <input
-              type="text"
-              placeholder="Usuario"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-base font-semibold ml-1 mb-1">Contraseña</label>
-            <input
-              type="password"
-              placeholder="*********"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-gray-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-600"
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="w-full bg-indigo-600 hover:bg-indigo-800 text-white py-2 mt-2 rounded-lg font-semibold transition-colors"
-          >
-            Iniciar Sesión
-          </button>
-
-          {error && (
-            <p className="text-red-500 text-sm text-center bg-red-500/2 p-2 rounded-md border border-red-700">
-              {error}
-            </p>
-          )}
-        </form>
-
-        {/* Enlace para registrarse */}
-        <p className="text-sm text-gray-400 mt-6 text-center">
+    <AuthLayout
+      title="Iniciar sesión"
+      subtitle="Ingresa tus credenciales para acceder a tu cuenta."
+      footer={
+        <>
           ¿No tienes una cuenta?{" "}
-          <Link to={"/register"} className="text-indigo-400 hover:underline text-sm font-semibold">
+          <Link to="/register" className="font-semibold text-accent-soft hover:underline">
             Regístrate aquí
           </Link>
-        </p>
-        
-      </div>
-    </div>
+        </>
+      }
+    >
+      {/* Motivo por el que se cerró la sesión anterior */}
+      {logoutReason && SESSION_MESSAGES[logoutReason] && (
+        <div
+          role="status"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-amber-200"
+        >
+          <Clock size={18} className="mt-0.5 shrink-0" />
+          <span>{SESSION_MESSAGES[logoutReason]}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <div>
+          <label htmlFor="login-username" className="mb-1.5 block text-sm font-medium text-ink">
+            Usuario
+          </label>
+          <div className="relative">
+            <User 
+              size={18}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+            />
+            <input 
+              id="login-username"
+              type="text"
+              autoComplete="username"
+              autoFocus
+              placeholder="Tu usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="field pl-10"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-ink">
+            Contraseña
+          </label>
+          <PasswordInput 
+            id="login-password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-red-300"
+          >
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full">
+          {isSubmitting ? (
+            <>
+              <Loader2 size={18} className="animate-spin" /> Ingresando...
+            </>
+          ) : (
+            "Iniciar sesión"
+          )}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

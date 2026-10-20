@@ -1,12 +1,45 @@
-import React from "react";
-import { Flame, MoreVertical, Plus, Minus, Check, Edit2, Trash2 } from "lucide-react";
-import {
-  DAYS_OF_WEEK,
-  lightenColor,
-  isStreakAtRisk,
-  getBorderColor,
-  getDisplayStreak,
-} from "../utils/habitUtils";
+import { useEffect, useRef } from "react";
+import { Check, Edit2, Flame, Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { getDisplayStreak, getLastSevenDays, isStreakAtRisk, lightenColor } from "../utils/habitUtils";
+
+const DEFAULT_COLOR = "#6366f1";
+const RING_RADIUS = 19;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
+// Mezcla un color con transparente. Funciona con cualquier color CSS válido
+// (antes se concatenaba "20" al hex, lo que solo servía con #RRGGBB).
+const tint = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
+// Anillo de progreso para hábitos con meta mayor a 1
+function ProgressRing({ count, target, color }) {
+  const offset = RING_LENGTH * (1 - Math.min(count / target, 1));
+  return (
+    <div
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center"
+      role="img"
+      aria-label={`${count} de ${target} completados hoy`}
+    >
+      <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90">
+        <circle cx="22" cy="22" r={RING_RADIUS} fill="none" strokeWidth="3.5" className="stroke-surface-2" />
+        <circle
+          cx="22"
+          cy="22"
+          r={RING_RADIUS}
+          fill="none"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          stroke={color}
+          strokeDasharray={RING_LENGTH}
+          strokeDashoffset={offset}
+          className="transition-all duration-500"
+        />
+      </svg>
+      <span className="text-[11px] font-semibold text-ink">
+        {count}/{target}
+      </span>
+    </div>
+  );
+}
 
 export default function HabitCard({
   habit,
@@ -20,248 +53,233 @@ export default function HabitCard({
   onDeleteHabit,
 }) {
   const target = habit.target_per_period || 1;
-  const progress =
-    habit.target_per_period > 1
-      ? habit.current_progress
-      : habit.completed_today
-      ? 1
-      : 0;
-  const percent = Math.min((progress / target) * 100, 100);
-  const isFullyDone = habit.completed_today;
-  const displayStreak = getDisplayStreak(habit);
+  const isMulti = target > 1;
+  const done = Boolean(habit.completed_today);
+  const count = isMulti ? habit.current_progress ?? 0 : done ? 1 : 0;
+  const color = habit.category?.color || DEFAULT_COLOR;
+  const streak = getDisplayStreak(habit);
+  const atRisk = isStreakAtRisk(habit);
+  const busy = Boolean(pendingHabits[habit.id]);
+  const celebrating = Boolean(justCompleted[habit.id]);
+  const isMenuOpen = openMenuId === habit.id;
+  const days = getLastSevenDays();
+
+  // Cerrar el menú con clic fuera o con Escape
+  const menuRef = useRef(null);
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onMouseDown = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setOpenMenuId(null);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isMenuOpen, setOpenMenuId]);
+
+  const stepperButton =
+    "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line-strong text-ink transition hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
-    <div
-      style={{ borderColor: getBorderColor(habit) }}
-      className={`relative overflow-hidden bg-black rounded-xl border-2 p-5 sm:p-6 md:p-8 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col ${
-        justCompleted[habit.id] ? "scale-[1.02]" : "scale-100"
+    <article
+      className={`card relative p-4 pl-5 transition-shadow sm:p-5 sm:pl-6 ${
+        celebrating ? "ring-2 ring-success/50" : ""
       }`}
     >
-      {/* Relleno tipo carga de progreso */}
-      <div
-        className="absolute inset-0 transition-all duration-500 ease-out"
-        style={{
-          width: `${percent}%`,
-          backgroundColor: isFullyDone
-            ? "#4951E410"
-            : `${habit.category?.color || "#4951E4"}20`,
-        }}
+      {/* Franja lateral con el color de la categoría */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-4 left-0 w-1 rounded-r-full"
+        style={{ backgroundColor: color }}
       />
 
-      {/* Check animado al completar */}
-      {justCompleted[habit.id] && (
-        <div className="absolute top-4 right-14 z-20 animate-pop-in">
-          <div className="bg-green-600 rounded-full p-1.5">
-            <Check size={16} className="text-white" />
-          </div>
-        </div>
-      )}
+      {/* Fila principal: control + título + menú */}
+      <div className="flex items-start gap-3">
+        {isMulti ? (
+          <ProgressRing count={count} target={target} color={color} />
+        ) : (
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={done}
+            aria-label={done ? `Desmarcar ${habit.name}` : `Completar ${habit.name}`}
+            disabled={busy}
+            onClick={() => onToggleCompletion(habit)}
+            className={`flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft disabled:cursor-wait disabled:opacity-60 ${
+              done
+                ? "border-success bg-success text-white"
+                : "border-line-strong text-transparent hover:border-accent-soft hover:text-ink-faint"
+            }`}
+          >
+            <Check size={22} className={celebrating ? "animate-pop-in" : ""} />
+          </button>
+        )}
 
-      <div className="relative z-10">
-        {/* Fila Principal: Stepper (Escritorio), Título y Menú */}
-        <div className="flex justify-between items-start gap-3">
-          <div className="flex items-start sm:items-center gap-3 w-full">
-            {/* Stepper visible solo en Escritorio (sm en adelante) */}
-            {habit.target_per_period > 1 ? (
-              <div className="hidden sm:flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => onUpdateProgress(habit, "decrement")}
-                  disabled={habit.current_progress === 0}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="text-sm font-semibold text-white min-w-[36px] text-center">
-                  {habit.current_progress ?? 0}/{habit.target_per_period}
-                </span>
-                <button
-                  onClick={() => onUpdateProgress(habit, "increment")}
-                  disabled={habit.current_progress >= habit.target_per_period}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-            ) : (
-              <input
-                type="checkbox"
-                checked={!!habit.completed_today}
-                onChange={() => onToggleCompletion(habit)}
-                disabled={pendingHabits[habit.id]}
-                className="w-5 h-5 mt-1 sm:mt-0 shrink-0 appearance-none rounded-full border-2 border-gray-400 bg-white checked:bg-green-600 checked:border-green-600 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-              />
-            )}
-
-            {/* Título y Descripción (100% ancho en móvil) */}
-            <div className="flex-1 pr-2">
-              <h3
-                className={`text-lg md:text-2xl duration-200 ${
-                  habit.completed_today
-                    ? "line-through text-gray-600"
-                    : "text-white font-semibold"
-                }`}
-              >
-                {habit.name}
-              </h3>
-              <p className="text-xs sm:text-sm md:text-base text-gray-400 mt-1 sm:mt-2">
-                {habit.description || "Sin descripción"}
-              </p>
-            </div>
-          </div>
-
-          {/* Menú de opciones */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() =>
-                setOpenMenuId(openMenuId === habit.id ? null : habit.id)
-              }
-              className="text-gray-400 hover:text-white transition cursor-pointer p-1"
-            >
-              <MoreVertical size={22} />
-            </button>
-
-            {openMenuId === habit.id && (
-              <div className="absolute right-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-20">
-                <button
-                  onClick={() => {
-                    setOpenMenuId(null);
-                    onEditHabit(habit);
-                  }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-t-xl cursor-pointer"
-                >
-                  <Edit2 size={16} /> Editar
-                </button>
-                <button
-                  onClick={() => {
-                    setOpenMenuId(null);
-                    onDeleteHabit(habit.id);
-                  }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-gray-700 rounded-b-xl cursor-pointer"
-                >
-                  <Trash2 size={16} /> Eliminar
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <h3
+            className={`break-words text-base font-semibold leading-snug sm:text-lg ${
+              done ? "text-ink-faint line-through" : "text-ink"
+            }`}
+          >
+            {habit.name}
+          </h3>
+          {habit.description && (
+            <p className="mt-0.5 line-clamp-2 text-sm text-ink-muted">{habit.description}</p>
+          )}
         </div>
 
-        {/* Info del hábito + Stepper para Móvil */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-4 sm:mt-6 text-sm text-gray-400">
-          <div className="flex items-center gap-3">
-            <span
-              className="border-2 px-2 py-0.5 text-xs rounded-full font-semibold"
-              style={{
-                borderColor: habit.category?.color || "#4951E4",
-                color: habit.category?.color || "#4951E4",
-                backgroundColor: `${habit.category?.color || "#4951E4"}30`,
-              }}
+        {/* Menú */}
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            aria-label="Opciones del hábito"
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => setOpenMenuId(isMenuOpen ? null : habit.id)}
+            className="-mr-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-ink-muted transition hover:bg-surface-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {isMenuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-line bg-surface-2 py-1 shadow-xl shadow-black/40"
             >
-              {habit.category?.name || "Sin categoría"}
-            </span>
-
-            {/* FEATURE: indicador de racha con 3 estados visuales distintos */}
-            <div className="flex items-center gap-1">
-              <Flame
-                className={
-                  habit.current_streak === 0
-                    ? "text-gray-700"       // sin racha activa: gris
-                    : isStreakAtRisk(habit)
-                    ? "text-amber-500"      // racha activa pero en riesgo: amarillo
-                    : "text-orange-600"     // racha activa: naranja       
-                }
-                size={20}
-              />
-              <span className={habit.current_streak === 0 ? "text-gray-600" : "text-gray-300"}>
-                {habit.current_streak ?? 0} días
-              </span>
-
-              {/* FEATURE: badge de alerta "!" cuando la racha está en riesgo */}
-              {isStreakAtRisk(habit) && (
-                <span
-                  className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-base font-bold ml-1 animate-pulse"
-                  title="Tu racha está en riesgo - complétalo hoy para no perderla"
-                >
-                  !
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Stepper visible solo en Móvil */}
-          {habit.target_per_period > 1 && (
-            <div className="flex sm:hidden items-center gap-2 bg-gray-900/80 px-2 py-1 rounded-lg border border-gray-800">
               <button
-                onClick={() => onUpdateProgress(habit, "decrement")}
-                disabled={habit.current_progress === 0}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpenMenuId(null);
+                  onEditHabit(habit);
+                }}
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm text-ink transition hover:bg-line"
               >
-                <Minus size={14} />
+                <Edit2 size={16} /> Editar
               </button>
-              <span className="text-xs font-semibold text-white min-w-[32px] text-center">
-                {habit.current_progress ?? 0}/{habit.target_per_period}
-              </span>
               <button
-                onClick={() => onUpdateProgress(habit, "increment")}
-                disabled={habit.current_progress >= habit.target_per_period}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpenMenuId(null);
+                  onDeleteHabit(habit.id);
+                }}
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm text-red-300 transition hover:bg-line"
               >
-                <Plus size={14} />
+                <Trash2 size={16} /> Eliminar
               </button>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Historial de 7 días (L M X J V S D) */}
-        {habit.week_history && (
-          <div className="flex items-center gap-2.5 mt-3">
-            {habit.week_history.map((completed, idx) => (
-              <span
-                key={idx}
-                className="text-xs sm:text-sm font-bold transition-colors"
-                style={{
-                  color: completed
-                    ? habit.category?.color || "#4951E4"
-                    : "#4b5563",
-                }}
-                title={DAYS_OF_WEEK[idx]}
-              >
-                {DAYS_OF_WEEK[idx]}
-              </span>
-            ))}
-          </div>
-        )}
+      {/* Chips + stepper */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className="rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+            style={{ color, backgroundColor: tint(color, 15), borderColor: tint(color, 35) }}
+          >
+            {habit.category?.name || "Sin categoría"}
+          </span>
 
-        {/* Barra de experiencia (XP) */}
-        {habit.progress && (
-          <div className="mt-4">
-            <div className="flex justify-between text-xs sm:text-sm text-gray-400 mb-1">
-              <span>Nivel {habit.progress.level}</span>
-              <span>
-                {habit.progress.experience} / {habit.progress.xp_to_next} XP
-              </span>
-            </div>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+              streak === 0
+                ? "border-line text-ink-faint"
+                : atRisk
+                ? "border-warning/40 bg-warning/10 text-amber-300"
+                : "border-orange-500/30 bg-orange-500/10 text-orange-300"
+            }`}
+          >
+            <Flame size={14} />
+            {streak} {streak === 1 ? "día" : "días"}
+          </span>
 
-            <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
-              <div
-                className="h-2 rounded-full transition-all duration-700 ease-out"
-                style={{
-                  width: `${Math.min(
-                    (habit.progress.experience / habit.progress.xp_to_next) *
-                      100,
-                    100
-                  )}%`,
-                  background: `linear-gradient(90deg, 
-                    ${lightenColor(
-                      habit.category?.color || "#4951E4",
-                      0.3
-                    )}, 
-                    ${habit.category?.color || "#4951E4"})`,
-                }}
-              />
-            </div>
+          {atRisk && (
+            <span
+              className="animate-pulse text-xs font-semibold text-amber-300"
+              title="Tu racha está en riesgo: complétalo hoy para no perderla"
+            >
+              En riesgo
+            </span>
+          )}
+        </div>
+
+        {isMulti && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Restar uno"
+              disabled={busy || count === 0}
+              onClick={() => onUpdateProgress(habit, "decrement")}
+              className={stepperButton}
+            >
+              <Minus size={16} />
+            </button>
+            <span className="min-w-10 text-center text-sm font-semibold text-ink">
+              {count}/{target}
+            </span>
+            <button
+              type="button"
+              aria-label="Sumar uno"
+              disabled={busy || count >= target}
+              onClick={() => onUpdateProgress(habit, "increment")}
+              className={stepperButton}
+            >
+              <Plus size={16} />
+            </button>
           </div>
         )}
       </div>
-    </div>
+
+      {/* Historial de 7 días (hoy es el último) */}
+      {Array.isArray(habit.week_history) && (
+        <div className="mt-4 grid grid-cols-7 gap-1.5" aria-label="Últimos 7 días">
+          {habit.week_history.map((completed, idx) => {
+            const day = days[idx];
+            return (
+              <div key={idx} className="flex flex-col items-center gap-1">
+                <span
+                  title={day?.name}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
+                    completed ? "text-white" : "bg-surface-2 text-ink-faint"
+                  } ${day?.isToday ? "ring-2 ring-accent-soft ring-offset-2 ring-offset-surface" : ""}`}
+                  style={completed ? { backgroundColor: color } : undefined}
+                >
+                  {day?.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* XP del hábito */}
+      {habit.progress && (
+        <div className="mt-4">
+          <div className="mb-1.5 flex justify-between text-xs text-ink-muted">
+            <span>Nivel {habit.progress.level}</span>
+            <span>
+              {habit.progress.experience} / {habit.progress.xp_to_next} XP
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${Math.min((habit.progress.experience / habit.progress.xp_to_next) * 100, 100)}%`,
+                background: `linear-gradient(90deg, ${lightenColor(color, 0.3)}, ${color})`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </article>
   );
 }

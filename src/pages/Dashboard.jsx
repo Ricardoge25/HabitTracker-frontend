@@ -1,106 +1,110 @@
-import { useAuth } from "../context/AuthContext";
-import HabitList from "../components/HabitList";
-import { Flame, CheckCircle, Target } from "lucide-react";
-import { useEffect, useState } from "react";
-import api from "../api/axios";
+import { useCallback, useEffect, useState } from "react";
+import { CalendarDays, CheckCircle2, Clock, Flame, Target } from "lucide-react";
 import { toast } from "react-hot-toast";
+import api from "../api/axios";
+import { useAuth } from "../hooks/useAuth";
+import { useNow } from "../hooks/useNow";
+import AppHeader from "../components/AppHeader";
+import HabitList from "../components/HabitList";
+import StatCard from "../components/StatCard";
 import { ProgressBar } from "../components/ProgressBar";
 
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
+function greetingFor(hour) {
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+// Componente aparte A PROPÓSITO: el reloj se actualiza cada pocos segundos y,
+// al estar aislado, solo se re-renderiza este bloque y no toda la página.
+function Greeting({ username }) {
+  const now = useNow();
+
+  const date = capitalize(
+    now.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })
+  );
+  const time = now.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
+
+  return (
+    <section className="mb-6">
+      <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {greetingFor(now.getHours())}, <span className="text-accent-soft">{username}</span>
+      </h1>
+      <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarDays size={16} className="text-ink-faint" /> {date}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Clock size={16} className="text-ink-faint" /> {time}
+        </span>
+      </p>
+    </section>
+  );
+}
+
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [globalProgress, setGlobalProgress] = useState(null);
   const [habitStats, setHabitStats] = useState({ completed: 0, total: 0 });
 
-  const fetchProgress = async () => {
+  const fetchProgress = useCallback(async () => {
     try {
       const res = await api.get("/progress/global/");
       setGlobalProgress(res.data);
     } catch (error) {
       toast.error("Error al obtener el progreso global");
+      console.error("Error al obtener el progreso global", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProgress();
-  }, []);
+  }, [fetchProgress]);
+
+  const todayPercent =
+    habitStats.total > 0 ? Math.round((habitStats.completed / habitStats.total) * 100) : 0;
+  const monthly = globalProgress?.monthly;
+  const monthlyPercent = Math.round(monthly?.percentage ?? 0);
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-black px-6 py-8">
-      {/* Header */}
-      <header className="w-full max-w-6xl flex items-center justify-between mb-6 px-2 sm:px-4">
-        {/* Titulo */}
-        <h1 className="text-xl sm:text-2xl md:text-4xl text-indigo-400 font-mono">
-          HabitTracker
-        </h1>
-        {/* Bienvenida y botón de logout */}
-        <div className="flex items-center gap-2 sm:gap-4t">
-          <p className="hidden sm:block text-white text-sm md:text-lg font-light">
-            Bienvenido de vuelta,{" "}
-            <span className="font-semibold italic">{user?.username}</span> 👋
-          </p>
-          <button
-            onClick={logout}
-            className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm text-white font-semibold px-3 sm:px-4 py-2 rounded-lg transition-colors"
-          >
-            Salir
-          </button>
-        </div>
-        
-      </header>
+    <div className="min-h-dvh">
+      <AppHeader />
 
-      {/* Métricas Principales */}
-      <section className="w-full max-w-6xl grid grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+        <Greeting username={user?.username} />
 
-        <div className="bg-black rounded-xl border-2 border-gray-300 p-3 sm:p-4 md:p-6 shadow transition">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs sm:text-sm text-gray-400">
-              Racha Actual
-            </h2>
-            <Flame className="text-orange-500 w-5 h-5" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white mt-2">
-            {globalProgress?.current_streak ?? 0} días
-          </p>
-          <p className="hidden sm:block text-gray-400 text-sm mt-2">
-            ¡Sigue así!
-          </p>
-        </div>
+        {/* Métricas: 3 columnas también en móvil, por eso son compactas */}
+        <section aria-label="Resumen" className="grid grid-cols-3 gap-2.5 sm:gap-4">
+          <StatCard
+            icon={Flame}
+            tone="warning"
+            label="Racha"
+            value={globalProgress?.current_streak ?? 0}
+            unit="días"
+            hint="¡Sigue así!"
+          />
+          <StatCard
+            icon={CheckCircle2}
+            tone="success"
+            label="Hoy"
+            value={`${habitStats.completed}/${habitStats.total}`}
+            progress={todayPercent}
+            hint={`${todayPercent}% completado`}
+          />
+          <StatCard
+            icon={Target}
+            tone="accent"
+            label="Meta mensual"
+            value={`${monthlyPercent}%`}
+            progress={monthlyPercent}
+            hint={`${monthly?.completed_days ?? 0} de ${monthly?.days_elapsed ?? 0} días`}
+          />
+        </section>
 
-        <div className="bg-black rounded-xl border-2 border-gray-300 p-3 sm:p-4 md:p-6 shadow transition">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs sm:text-sm text-gray-400">
-              Hoy
-            </h2>
-            <CheckCircle className="text-green-500 w-5 h-5" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white mt-2">
-            {habitStats.completed} / {habitStats.total}
-          </p>
-          <p className="hidden sm:block text-gray-400 text-sm mt-2">
-            {habitStats.total > 0
-              ? Math.round((habitStats.completed / habitStats.total) * 100)
-              : 0}% Completado
-          </p>
-
-        </div>
-
-        <div className="bg-black rounded-xl border-2 border-gray-300 p-2 sm:p-4 md:p-6 shadow transition">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs sm:text-sm text-gray-400">
-              Meta Mensual
-            </h2>
-            <Target className="text-blue-500 w-5 h-5"  />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white mt-2">
-            {globalProgress?.monthly?.percentage ?? 0}%
-          </p>
-          <p className="hidden sm:block text-gray-400 text-sm mt-2">
-            {globalProgress?.monthly?.completed_days ?? 0} de {globalProgress?.monthly?.days_elapsed ?? 0} días
-          </p>  
-        </div>
-      <div className="w-full col-span-3">
         {globalProgress && (
-          <div className="w-full">
+          <div className="mt-2.5 sm:mt-4">
             <ProgressBar
               level={globalProgress.level}
               xp={globalProgress.experience}
@@ -108,11 +112,11 @@ export default function Dashboard() {
             />
           </div>
         )}
-      </div>
-      </section>
 
-      {/* Lista de hábitos */}
-      <HabitList onProgressChange={fetchProgress} onStatsChange={setHabitStats} />
+        <div className="mt-8">
+          <HabitList onProgressChange={fetchProgress} onStatsChange={setHabitStats} />
+        </div>
+      </main>
     </div>
   );
 }
