@@ -1,9 +1,9 @@
 // Configuración y utilidades de sesión. Sin React: solo constantes y localStorage.
 
-// Valores por defecto. Para probar sin esperar 30 minutos, define en .env.local:
+// Valores por defecto. Para probar sin esperar 5 minutos, define en .env.local:
 //   VITE_IDLE_TIMEOUT_MS=90000
 export const IDLE_TIMEOUT_MS =
-  Number(import.meta.env.VITE_IDLE_TIMEOUT_MS) || 30 * 60 * 1000;
+  Number(import.meta.env.VITE_IDLE_TIMEOUT_MS) || 5 * 60 * 1000;
 
 // Margen de aviso antes de cerrar. Nunca más de la mitad del timeout (así el aviso
 // no aparece nada más iniciar sesión si pruebas con tiempos cortos).
