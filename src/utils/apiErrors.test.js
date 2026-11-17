@@ -21,7 +21,7 @@ describe("extractApiError", () => {
   it("toma el primer mensaje de un error por campo", () => {
     const data = { name: ["Ya tienes un hábito con ese nombre."] };
 
-    expect(extractApiError(data)).toBe("Ya tenes un hábito con ese nombre.");
+    expect(extractApiError(data)).toBe("Ya tienes un hábito con ese nombre.");
   });
 
   it("con varios campos devuelve el primer mensaje del primer campo", () => {

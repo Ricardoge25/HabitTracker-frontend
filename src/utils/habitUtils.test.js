@@ -41,7 +41,7 @@ describe("getLastSevenDays", () => {
 
 describe("lightenColor", () => {
   it("aclara un color sumándole blanco", () => {
-    expect(lightenColor("#000000", 0.5)).toBe("rgb(128, 128, 128");
+    expect(lightenColor("#000000", 0.5)).toBe("rgb(128, 128, 128)");
   });
 
   it("nunca pasa de 255", () => {
