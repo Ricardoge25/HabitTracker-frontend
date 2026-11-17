@@ -11,7 +11,7 @@ export default defineConfig({
   // Vitest lee esta misma configuración
   test: {
     environment: 'node', // pruebas de funciones puras: no hace falta un navegador simulado.
-    include: ['src/**/*.test,js'],
+    include: ['src/**/*.test.js'],
     globalSetup: ['./src/test/global-setup.js'],
   },
 })
