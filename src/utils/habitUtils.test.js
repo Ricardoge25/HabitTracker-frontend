@@ -6,52 +6,15 @@ import {
   formatStreak,
   formatStreakDetail,
   getCalendarWeek,
+  getContrastTextColor,
   getFrequencyConfig,
-  getLastSevenDays,
   getPeriodProgress,
   isDailyHabit,
   lightenColor,
   needsAttention,
   parseISODate,
+  startOfWeek,
 } from "./habitUtils";
-
-describe("getLastSevenDays", () => {
-  it("devuelve 7 días terminando hoy, con la letra de cada día", () => {
-    const today = new Date(2026, 10, 6); // viernes 6-nov-2026 (los meses van de 0 a 11)
-
-    const days = getLastSevenDays(today);
-
-    expect(days.map((d) => d.label)).toEqual(["S", "D", "L", "M", "X", "J", "V"]);
-  });
-
-  it("marca solo el último día como hoy", () => {
-    const days = getLastSevenDays(new Date(2026, 10, 6));
-
-    expect(days.map((d) => d.isToday)).toEqual([false, false, false, false, false, false, true]);
-  });
-
-  it("cruza el cambio de año", () => {
-    const days = getLastSevenDays(new Date(2027, 0, 2)); // sábado 2-ene-2027
-
-    expect(days.map((d) => d.label)).toEqual(["D", "L", "M", "X", "J", "V", "S"]);
-  });
-
-  it("no modifica la fecha recibida", () => {
-    const today = new Date(2026, 10, 6);
-
-    getLastSevenDays(today);
-
-    expect(today.getDate()).toBe(6);
-    expect(today.getMonth()).toBe(10);
-  });
-
-  it("da el nombre del día en español", () => {
-    const days = getLastSevenDays(new Date(2026, 10, 6));
-
-    expect(days[0].name).toBe("sábado");
-    expect(days[6].name).toBe("viernes");
-  });
-});
 
 describe("lightenColor", () => {
   it("aclara un color sumándole blanco", () => {
@@ -68,6 +31,36 @@ describe("lightenColor", () => {
 
   it("usa el color por defecto cuando no recibe ninguno", () => {
     expect(lightenColor(undefined, 0)).toBe("rgb(73, 81, 228)");
+  });
+});
+
+describe("getContrastTextColor", () => {
+  const WHITE = "#ffffff";
+  const DARK = "#0d1117";
+
+  it("los colores claros llevan texto oscuro", () => {
+    expect(getContrastTextColor("#ffff00")).toBe(DARK); // amarillo
+    expect(getContrastTextColor("#00ffff")).toBe(DARK); // cian
+    expect(getContrastTextColor("#22c55e")).toBe(DARK); // verde
+    expect(getContrastTextColor("#ffffff")).toBe(DARK);
+  });
+
+  it("los colores oscuros o intensos mantienen el texto blanco", () => {
+    expect(getContrastTextColor("#6366f1")).toBe(WHITE); // índigo (el color por defecto)
+    expect(getContrastTextColor("#ef4444")).toBe(WHITE); // rojo
+    expect(getContrastTextColor("#3b82f6")).toBe(WHITE); // azul
+    expect(getContrastTextColor("#000000")).toBe(WHITE);
+  });
+
+  it("acepta el formato corto #rgb y mayúsculas", () => {
+    expect(getContrastTextColor("#ff0")).toBe(DARK);
+    expect(getContrastTextColor("#FFFF00")).toBe(DARK);
+  });
+
+  it("con un color que no entiende deja el texto blanco", () => {
+    expect(getContrastTextColor(undefined)).toBe(WHITE);
+    expect(getContrastTextColor("")).toBe(WHITE);
+    expect(getContrastTextColor("rojo")).toBe(WHITE);
   });
 });
 
@@ -140,6 +133,37 @@ describe("fechas de calendario", () => {
   });
 });
 
+describe("startOfWeek", () => {
+  it("devuelve el lunes de la semana a medianoche", () => {
+    const monday = startOfWeek(new Date(2026, 10, 6, 15, 30)); // viernes 6-nov a las 3:30 p. m.
+
+    expect([monday.getFullYear(), monday.getMonth(), monday.getDate()]).toEqual([2026, 10, 2]);
+    expect(monday.getHours()).toBe(0);
+  });
+
+  it("el domingo pertenece a la semana que empezó el lunes anterior", () => {
+    expect(startOfWeek(new Date(2026, 10, 8)).getDate()).toBe(2);
+  });
+
+  it("el lunes es su propio inicio de semana", () => {
+    expect(startOfWeek(new Date(2026, 10, 2)).getDate()).toBe(2);
+  });
+
+  it("cruza el cambio de mes y de año", () => {
+    const monday = startOfWeek(new Date(2027, 0, 2)); // sábado 2-ene-2027
+
+    expect([monday.getFullYear(), monday.getMonth(), monday.getDate()]).toEqual([2026, 11, 28]);
+  });
+
+  it("no modifica la fecha recibida", () => {
+    const today = new Date(2026, 10, 6, 15, 30);
+
+    startOfWeek(today);
+
+    expect([today.getDate(), today.getHours()]).toEqual([6, 15]);
+  });
+});
+
 describe("getCalendarWeek", () => {
   // Viernes 6-nov-2026; semana lunes 2 a domingo 8. week_history cubre del sábado 31-oct al viernes 6-nov.
   const today = new Date(2026, 10, 6);
@@ -183,6 +207,15 @@ describe("getCalendarWeek", () => {
 
     expect(week.map((d) => d.state)).toEqual(["done", "missed", "done", "done", "done", "missed", "done"]);
     expect(week[6].isToday).toBe(true);
+  });
+
+  it("acepta el inicio de semana como Date (lo usan los diarios)", () => {
+    const history = [true, false, true, false, true, false, false];
+
+    const fromDate = getCalendarWeek(new Date(2026, 10, 2), history, today);
+    const fromString = getCalendarWeek("2026-11-02", history, today);
+
+    expect(fromDate).toEqual(fromString);
   });
 
   it("la semana puede cruzar de mes", () => {
