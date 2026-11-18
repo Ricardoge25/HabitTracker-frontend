@@ -4,13 +4,25 @@ import { toast } from "react-hot-toast";
 import api from "../api/axios";
 import { useAuth } from "../hooks/useAuth";
 import { extractApiError } from "../utils/apiErrors";
+import { describeCompletionChange, isDailyHabit, needsAttention } from "../utils/habitUtils";
 import HabitModal from "./HabitModal";
 import HabitCard from "./HabitCard";
 import ConfirmDialog from "./ConfirmDialog";
 
-// Pendientes primero. Devuelve una copia: nunca se muta el estado ni la respuesta.
+// Lo que pide atención hoy va primero (ver needsAttention). Devuelve una copia:
+// nunca se muta el estado ni la respuesta. sort() es estable, así que dentro de
+// cada grupo se respeta el orden en que llegan del servidor.
 const sortHabits = (list) =>
-  [...list].sort((a, b) => Number(a.completed_today) - Number(b.completed_today));
+  [...list].sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
+
+// Cada tipo de mensaje de describeCompletionChange con su estilo de toast
+const showCompletionToasts = (messages) => {
+  messages.forEach(({ kind, text }) => {
+    if (kind === "success") toast.success(text);
+    else if (kind === "bonus") toast.success(text, { icon: "🏆", duration: 5000 });
+    else toast(text, { icon: "ℹ️" });
+  });
+};
 
 export default function HabitList({ onProgressChange, onStatsChange }) {
   const { user } = useAuth();
@@ -56,11 +68,14 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
   }, [user, fetchHabits]);
 
   // Las estadísticas son estado DERIVADO de `habits`: se calculan, no se guardan aparte.
+  // "Hoy" cuenta SOLO los diarios: un semanal sin marcar hoy no es una tarea pendiente
+  // de hoy (puede hacerse otro día de la semana), así que no debe bajar el porcentaje.
   useEffect(() => {
     if (!onStatsChange) return;
+    const daily = habits.filter(isDailyHabit);
     onStatsChange({
-      completed: habits.filter((h) => h.completed_today).length,
-      total: habits.length,
+      completed: daily.filter((h) => h.completed_today).length,
+      total: daily.length,
     });
   }, [habits, onStatsChange]);
 
@@ -140,23 +155,32 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
     }
   };
 
-  const applyServerResult = (habitId, data, extra = {}) => {
+  // Después de marcar, desmarcar o cambiar el progreso:
+  // 1) se aplica al instante lo que ya trae la respuesta (el check no "parpadea"),
+  // 2) se avisa con toasts y se refresca el XP global,
+  // 3) se vuelve a pedir /habits/today/. Días del periodo, racha en veces, riesgo y
+  //    bonus los calcula el backend: el frontend NO los recalcula, los vuelve a leer.
+  const applyCompletion = async (habit, data, extra = {}) => {
     const { record, habit_progress, current_streak } = data;
     setHabits((prev) =>
-      sortHabits(
-        prev.map((h) =>
-          h.id === habitId
-            ? {
-                ...h,
-                completed_today: record.completed,
-                progress: habit_progress,
-                current_streak,
-                ...extra,
-              }
-            : h
-        )
+      prev.map((h) =>
+        h.id === habit.id
+          ? {
+              ...h,
+              completed_today: record.completed,
+              progress: habit_progress,
+              current_streak,
+              ...extra,
+            }
+          : h
       )
     );
+
+    if (record.completed && !habit.completed_today) triggerCompletionPulse(habit.id);
+    showCompletionToasts(describeCompletionChange(habit, data));
+    if (onProgressChange) onProgressChange(data.global_progress);
+
+    await fetchHabits();
   };
 
   const handleToggleCompletion = (habit) =>
@@ -165,48 +189,25 @@ export default function HabitList({ onProgressChange, onStatsChange }) {
         const { data } = await api.post(`/habits/${habit.id}/toggle-completion/`, {
           completed: !habit.completed_today,
         });
-
-        applyServerResult(habit.id, data);
-
-        if (data.record.completed && !habit.completed_today) {
-          triggerCompletionPulse(habit.id);
-          toast.success(
-            `Completaste "${habit.name}" hoy (+${data.habit_progress.experience} XP)`
-          );
-        } else {
-          toast(`Desmarcaste "${habit.name}" (-25 XP)`, {
-            icon: "❌",
-            style: { color: "#fff" },
-          });
-        }
-
-        if (onProgressChange) onProgressChange(data.global_progress);
+        await applyCompletion(habit, data);
       } catch (error) {
         console.error("❌ Error al actualizar el hábito", error);
-        toast.error("Error al actualizar el hábito");
+        toast.error(extractApiError(error.response?.data, "Error al actualizar el hábito"));
       }
     });
 
   const handleUpdateProgress = (habit, direction) =>
     withPending(habit.id, async () => {
+      // Defensa: el contador por repeticiones solo existe en los diarios
+      if (!isDailyHabit(habit)) return;
       try {
         const { data } = await api.post(`/habits/${habit.id}/update-progress/`, {
           direction,
         });
-
-        applyServerResult(habit.id, data, { current_progress: data.record.progress });
-
-        if (data.record.completed && !habit.completed_today) {
-          triggerCompletionPulse(habit.id);
-          toast.success(
-            `Completaste "${habit.name}" hoy (+${data.habit_progress.experience} XP)`
-          );
-        }
-
-        if (onProgressChange) onProgressChange(data.global_progress);
+        await applyCompletion(habit, data, { current_progress: data.record.progress });
       } catch (error) {
         console.error("❌ Error al actualizar el progreso", error);
-        toast.error("Error al actualizar el progreso");
+        toast.error(extractApiError(error.response?.data, "Error al actualizar el progreso"));
       }
     });
 

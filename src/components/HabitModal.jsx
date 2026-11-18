@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { toast } from "react-hot-toast";
 import api from "../api/axios";
+import { FREQUENCY_CONFIG, clampTarget, getFrequencyConfig } from "../utils/habitUtils";
 import CategoryModal from "./CategoryModal";
 import Modal from "./Modal";
 
@@ -26,6 +27,9 @@ export default function HabitModal({
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Etiqueta, tope y ayuda de la meta: todo sale de la frecuencia elegida
+  const { targetLabel, targetHelp, maxTarget } = getFrequencyConfig(frequency);
+
   // Cargar datos si es edición; limpiar si es creación
   useEffect(() => {
     if (habit) {
@@ -47,6 +51,19 @@ export default function HabitModal({
     if (!isSaving) onClose();
   };
 
+  // Al cambiar de frecuencia se ajusta la meta al tope de la nueva (ej. 7 diarias -> 5 semanales).
+  // Si el campo está vacío se respeta: el usuario aún está escribiendo.
+  const handleFrequencyChange = (e) => {
+    const nextFrequency = e.target.value;
+    setFrequency(nextFrequency);
+    if (target !== "") setTarget(String(clampTarget(nextFrequency, target)));
+  };
+
+  // Al salir del campo se normaliza (vacío, 0 o pasado del tope)
+  const handleTargetBlur = () => {
+    setTarget(String(clampTarget(frequency, target)));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return; // evita doble envío
@@ -56,7 +73,8 @@ export default function HabitModal({
         name,
         description,
         frequency,
-        target_per_period: Math.max(1, Number(target) || 1),
+        // El backend rechaza metas fuera de rango (400): nunca enviamos una
+        target_per_period: clampTarget(frequency, target),
         category_id: category ? Number(category) : null,
       });
     } finally {
@@ -87,7 +105,7 @@ export default function HabitModal({
         description={
           isEditing
             ? "Actualiza los datos de tu hábito."
-            : "Define qué quieres construir y cuántas veces al día."
+            : "Define qué quieres construir y con qué frecuencia."
         }
         onClose={handleClose}
         // Mientras el modal de categorías está abierto, Escape solo debe cerrar ese
@@ -145,17 +163,20 @@ export default function HabitModal({
                 id={`${formId}-freq`}
                 className="field"
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
+                onChange={handleFrequencyChange}
               >
-                <option value="daily">Diario</option>
-                <option value="weekly">Semanal</option>
-                <option value="monthly">Mensual</option>
+                {/* Las opciones salen de FREQUENCY_CONFIG: una sola fuente de verdad */}
+                {Object.entries(FREQUENCY_CONFIG).map(([value, config]) => (
+                  <option key={value} value={value}>
+                    {config.label}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
               <label htmlFor={`${formId}-target`} className={labelClass}>
-                Meta por día
+                {targetLabel}
               </label>
               <input
                 id={`${formId}-target`}
@@ -164,10 +185,17 @@ export default function HabitModal({
                 className="field"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
+                onBlur={handleTargetBlur}
                 min="1"
+                max={maxTarget ?? undefined}
+                aria-describedby={`${formId}-target-help`}
               />
             </div>
           </div>
+
+          <p id={`${formId}-target-help`} className="-mt-2 text-sm text-ink-muted">
+            {targetHelp}
+          </p>
 
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
