@@ -1,6 +1,15 @@
 import { useEffect, useRef } from "react";
-import { Check, Edit2, Flame, Minus, MoreVertical, Plus, Trash2 } from "lucide-react";
-import { getDisplayStreak, getLastSevenDays, isStreakAtRisk, lightenColor } from "../utils/habitUtils";
+import { Check, Edit2, Flame, Minus, MoreVertical, Plus, Trash2, Trophy } from "lucide-react";
+import {
+  formatStreak,
+  formatStreakDetail,
+  getCalendarWeek,
+  getContrastTextColor,
+  getPeriodProgress,
+  isDailyHabit,
+  lightenColor,
+  startOfWeek,
+} from "../utils/habitUtils";
 
 const DEFAULT_COLOR = "#6366f1";
 const RING_RADIUS = 19;
@@ -10,7 +19,7 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 // (antes se concatenaba "20" al hex, lo que solo servía con #RRGGBB).
 const tint = (color, percent) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 
-// Anillo de progreso para hábitos con meta mayor a 1
+// Anillo de progreso para hábitos DIARIOS con meta mayor a 1
 function ProgressRing({ count, target, color }) {
   const offset = RING_LENGTH * (1 - Math.min(count / target, 1));
   return (
@@ -41,6 +50,76 @@ function ProgressRing({ count, target, color }) {
   );
 }
 
+// Círculo de un día de la tira L-D.
+// state: "done" (hecho), "missed" (pasó sin hacerse) o "future" (aún no llega).
+function DayDot({ label, name, state, isToday, color }) {
+  const stateClass = {
+    done: "",
+    missed: "bg-surface-2 text-ink-faint",
+    future: "border border-dashed border-line-strong text-ink-faint/60",
+  }[state];
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span
+        title={name}
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${stateClass} ${
+          isToday ? "ring-2 ring-accent-soft ring-offset-2 ring-offset-surface" : ""
+        }`}
+        // Fondo = color de la categoría; la letra se elige para que se lea sobre él
+        style={state === "done" ? { backgroundColor: color, color: getContrastTextColor(color) } : undefined}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// Tira de lunes a domingo. Los semanales usan el inicio de periodo que manda el backend
+// y muestran cuántos días llevan; los diarios usan el lunes de esta semana y no llevan texto.
+function CalendarWeek({ habit, color }) {
+  const isWeekly = habit.frequency === "weekly" && Boolean(habit.period?.start);
+  const week = getCalendarWeek(isWeekly ? habit.period.start : startOfWeek(), habit.week_history);
+  return (
+    <div className="mt-4">
+      {isWeekly && (
+        <p className="mb-2 text-xs font-medium text-ink-muted">{getPeriodProgress(habit).label}</p>
+      )}
+      <div className="grid grid-cols-7 gap-1.5" aria-label="Semana actual, de lunes a domingo">
+        {week.map((day, idx) => (
+          <DayDot key={idx} {...day} color={color} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Mensual: barra de días hechos frente a la meta del mes
+function MonthProgress({ habit, color }) {
+  const { label, percent, met } = getPeriodProgress(habit);
+  return (
+    <div className="mt-4">
+      <div className="mb-1.5 flex justify-between text-xs text-ink-muted">
+        <span>{label}</span>
+        <span className={met ? "font-semibold text-success" : ""}>{percent}%</span>
+      </div>
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-surface-2"
+        role="progressbar"
+        aria-label="Avance de la meta del mes"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${percent}%`, backgroundColor: met ? "var(--color-success)" : color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function HabitCard({
   habit,
   openMenuId,
@@ -52,17 +131,27 @@ export default function HabitCard({
   onEditHabit,
   onDeleteHabit,
 }) {
+  const isDaily = isDailyHabit(habit);
+  // El mensual muestra barra; diarios y semanales, la tira L-D.
+  // Sin periodo (backend viejo) un mensual cae en la tira, como si fuera diario.
+  const showsMonthBar = habit.frequency === "monthly" && Boolean(habit.period?.start);
   const target = habit.target_per_period || 1;
-  const isMulti = target > 1;
+  // El stepper SOLO existe en diarios: en semanales y mensuales la meta son DÍAS,
+  // y un día se marca una sola vez (por eso update-progress responde 400 en esos casos)
+  const usesStepper = isDaily && target > 1;
   const done = Boolean(habit.completed_today);
-  const count = isMulti ? habit.current_progress ?? 0 : done ? 1 : 0;
+  const count = usesStepper ? habit.current_progress ?? 0 : done ? 1 : 0;
   const color = habit.category?.color || DEFAULT_COLOR;
-  const streak = getDisplayStreak(habit);
-  const atRisk = isStreakAtRisk(habit);
+  const streakTimes = habit.streak_times ?? habit.current_streak ?? 0;
+  const atRisk = Boolean(habit.at_risk);
+  const streakDetail = formatStreakDetail(habit);
   const busy = Boolean(pendingHabits[habit.id]);
   const celebrating = Boolean(justCompleted[habit.id]);
   const isMenuOpen = openMenuId === habit.id;
-  const days = getLastSevenDays();
+
+  // Tachado: el diario está "terminado" por hoy. El semanal o mensual sigue vivo
+  // durante todo el periodo, así que no se tacha aunque hoy ya esté marcado.
+  const strikeTitle = isDaily && done;
 
   // Cerrar el menú con clic fuera o con Escape
   const menuRef = useRef(null);
@@ -85,6 +174,14 @@ export default function HabitCard({
   const stepperButton =
     "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line-strong text-ink transition hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft disabled:cursor-not-allowed disabled:opacity-40";
 
+  const checkLabel = isDaily
+    ? done
+      ? `Desmarcar ${habit.name}`
+      : `Completar ${habit.name}`
+    : done
+    ? `Desmarcar hoy en ${habit.name}`
+    : `Marcar hoy en ${habit.name}`;
+
   return (
     <article
       className={`card relative p-4 pl-5 transition-shadow sm:p-5 sm:pl-6 ${
@@ -100,14 +197,14 @@ export default function HabitCard({
 
       {/* Fila principal: control + título + menú */}
       <div className="flex items-start gap-3">
-        {isMulti ? (
+        {usesStepper ? (
           <ProgressRing count={count} target={target} color={color} />
         ) : (
           <button
             type="button"
             role="checkbox"
             aria-checked={done}
-            aria-label={done ? `Desmarcar ${habit.name}` : `Completar ${habit.name}`}
+            aria-label={checkLabel}
             disabled={busy}
             onClick={() => onToggleCompletion(habit)}
             className={`flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft disabled:cursor-wait disabled:opacity-60 ${
@@ -123,7 +220,7 @@ export default function HabitCard({
         <div className="min-w-0 flex-1 pt-0.5">
           <h3
             className={`break-words text-base font-semibold leading-snug sm:text-lg ${
-              done ? "text-ink-faint line-through" : "text-ink"
+              strikeTitle ? "text-ink-faint line-through" : "text-ink"
             }`}
           >
             {habit.name}
@@ -189,8 +286,9 @@ export default function HabitCard({
           </span>
 
           <span
+            title={streakDetail || undefined}
             className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-              streak === 0
+              streakTimes === 0
                 ? "border-line text-ink-faint"
                 : atRisk
                 ? "border-warning/40 bg-warning/10 text-amber-300"
@@ -198,20 +296,33 @@ export default function HabitCard({
             }`}
           >
             <Flame size={14} />
-            {streak} {streak === 1 ? "día" : "días"}
+            {formatStreak(habit)}
           </span>
+
+          {habit.bonus_earned && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-green-300"
+              title={`Meta ${habit.frequency === "monthly" ? "del mes" : "de la semana"} cumplida`}
+            >
+              <Trophy size={14} />+{habit.bonus_earned.xp_habit} XP
+            </span>
+          )}
 
           {atRisk && (
             <span
               className="animate-pulse text-xs font-semibold text-amber-300"
-              title="Tu racha está en riesgo: complétalo hoy para no perderla"
+              title={
+                isDaily
+                  ? "Tu racha está en riesgo: complétalo hoy para no perderla"
+                  : "Tu racha está en riesgo: aún puedes cumplir la meta de este periodo"
+              }
             >
               En riesgo
             </span>
           )}
         </div>
 
-        {isMulti && (
+        {usesStepper && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -238,26 +349,11 @@ export default function HabitCard({
         )}
       </div>
 
-      {/* Historial de 7 días (hoy es el último) */}
-      {Array.isArray(habit.week_history) && (
-        <div className="mt-4 grid grid-cols-7 gap-1.5" aria-label="Últimos 7 días">
-          {habit.week_history.map((completed, idx) => {
-            const day = days[idx];
-            return (
-              <div key={idx} className="flex flex-col items-center gap-1">
-                <span
-                  title={day?.name}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
-                    completed ? "text-white" : "bg-surface-2 text-ink-faint"
-                  } ${day?.isToday ? "ring-2 ring-accent-soft ring-offset-2 ring-offset-surface" : ""}`}
-                  style={completed ? { backgroundColor: color } : undefined}
-                >
-                  {day?.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      {/* Historial según la frecuencia */}
+      {showsMonthBar ? (
+        <MonthProgress habit={habit} color={color} />
+      ) : (
+        Array.isArray(habit.week_history) && <CalendarWeek habit={habit} color={color} />
       )}
 
       {/* XP del hábito */}
