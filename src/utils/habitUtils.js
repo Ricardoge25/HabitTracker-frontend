@@ -4,24 +4,6 @@
 export const DAYS_OF_WEEK = ["L", "M", "X", "J", "V", "S", "D"];
 
 /**
- * Los 7 días que muestra el historial: de hace 6 días hasta HOY (así lo devuelve el backend).
- * Cada letra se calcula con la fecha real; antes se rotulaba siempre L-M-X-J-V-S-D
- * y las letras no coincidían con los días.
- * @return {{label: string, name: string, isToday: boolean}[]}
- */
-export function getLastSevenDays(today = new Date()) {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (6 - i));
-    return {
-      label: DAYS_OF_WEEK[(d.getDay() + 6) % 7], // getDay(): 0 = domingo
-      name: d.toLocaleDateString("es-CO", { weekday: "long" }),
-      isToday: i === 6,
-    };
-  });
-}
-
-/**
  * Aclara un color HEX sumándole un porcentaje de blanco.
  * @param {string} color - Color en formato HEX (#RRGGBB).
  * @param {number} amount - Porcentaje de aclarado (0 a 1).
@@ -41,6 +23,46 @@ export function lightenColor(color, amount) {
   } catch {
     return color || "#4951E4";
   }
+}
+
+// Canal sRGB (0-255) a luminancia lineal, según la fórmula de WCAG 2
+function channelToLinear(value) {
+  const c = value / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+// Luminancia relativa de un color HEX (0 = negro, 1 = blanco); null si no es un HEX válido
+function relativeLuminance(color) {
+  let hex = String(color ?? "").trim().replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+
+  const num = parseInt(hex, 16);
+  const r = channelToLinear(num >> 16);
+  const g = channelToLinear((num >> 8) & 0xff);
+  const b = channelToLinear(num & 0xff);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+const TEXT_ON_DARK = "#d4d4d4";
+const TEXT_ON_LIGHT = "#303030"; // el mismo tono que --color-canvas
+// 3:1 es el mínimo de WCAG para texto grande y elementos gráficos. La letra del día
+// es un apoyo (la posición ya dice qué día es), así que se exige 3:1 y no 4.5:1.
+// Con 4.5:1 casi toda la paleta pasaría a texto oscuro, aunque el blanco se lea bien.
+const MIN_WHITE_CONTRAST = 3;
+
+/**
+ * Color de texto legible sobre un fondo: blanco mientras contraste al menos 3:1,
+ * y si no (amarillo, cian, verde claro...) el oscuro de la app.
+ * @param {string} background - Color HEX del fondo (#RGB o #RRGGBB).
+ * @return {string} "#d4d4d4" o "#303030".
+ */
+export function getContrastTextColor(background) {
+  const luminance = relativeLuminance(background);
+  if (luminance === null) return TEXT_ON_DARK;
+
+  const contrastWithWhite = 1.05 / (luminance + 0.05);
+  return contrastWithWhite >= MIN_WHITE_CONTRAST ? TEXT_ON_DARK : TEXT_ON_LIGHT;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,13 +146,24 @@ export function daysBetween(from, to) {
   return dayNumber(to) - dayNumber(from);
 }
 
+/** Lunes de la semana de `date`, a medianoche local. No modifica la fecha recibida. */
+export function startOfWeek(date = new Date()) {
+  const daysSinceMonday = (date.getDay() + 6) % 7; // getDay(): 0 = domingo
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysSinceMonday);
+}
+
 /**
- * Los 7 días de la semana calendario (lunes a domingo) de un hábito semanal.
- * `weekHistory` son los últimos 7 días terminando HOY (como lo devuelve el backend).
+ * Los 7 días de la semana calendario (lunes a domingo).
+ * `periodStart` es el lunes: "YYYY-MM-DD" (el period.start de un semanal) o un Date
+ * (los diarios usan startOfWeek()). `weekHistory` son los últimos 7 días terminando
+ * HOY, como los devuelve el backend: alcanzan porque el lunes está a lo sumo 6 días atrás.
  * @return {{label: string, name: string, state: "done"|"missed"|"future", isToday: boolean}[]}
  */
 export function getCalendarWeek(periodStart, weekHistory, today = new Date()) {
-  const start = parseISODate(periodStart);
+  const start =
+    typeof periodStart === "string"
+      ? parseISODate(periodStart)
+      : new Date(periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate());
   return Array.from({ length: 7 }, (_, i) => {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
@@ -248,54 +281,4 @@ export function describeCompletionChange(habit, data) {
   }
 
   return messages;
-}
-
-/**
- * Determina si la racha de un hábito está en riesgo, durante TODO el día.
- *
- * Regla de negocio (coherente con el backend, que tolera UN día fallado y rompe
- * la racha con DOS seguidos): hay riesgo cuando existe una racha activa, ayer no
- * se completó y hoy tampoco. Si hoy tampoco se completa, la racha se rompe.
- *
- * @param {object} habit - Objeto del hábito.
- * @return {boolean} True si está en riesgo.
- */
-export function isStreakAtRisk(habit) {
-  return (
-    habit.current_streak > 0 &&
-    !habit.completed_today &&
-    habit.yesterday_completed === false
-  );
-}
-
-/**
- * Calcula o formatea el valor real de la racha a mostrar.
- * Si no se ha completado hoy, preserva el valor acumulado hasta ayer.
- */
-export function getDisplayStreak(habit) {
-  if (!habit) return 0;
-
-  // Si la API o el estado trae current_streak, lo usamos directamente
-  if (typeof habit.current_streak === "number") {
-    return habit.current_streak;
-  }
-
-  // Si se calcula desde el historial de días
-  if (Array.isArray(habit.week_history)) {
-    let streak = 0;
-    const history = habit.week_history;
-    const startIndex = habit.completed_today ? history.length - 1 : history.length - 2;
-
-    for (let i = startIndex; i >= 0; i--) {
-      if (history[i]) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-
-    return habit.completed_today ? streak + 1 : streak;
-  }
-
-  return 0;
 }

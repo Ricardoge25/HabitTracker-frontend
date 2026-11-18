@@ -35,8 +35,8 @@ describe("lightenColor", () => {
 });
 
 describe("getContrastTextColor", () => {
-  const WHITE = "#ffffff";
-  const DARK = "#0d1117";
+  const WHITE = "#d4d4d4";
+  const DARK = "#303030";
 
   it("los colores claros llevan texto oscuro", () => {
     expect(getContrastTextColor("#ffff00")).toBe(DARK); // amarillo
