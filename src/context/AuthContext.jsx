@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
+import { endSession } from "../api/auth";
 import { AuthContext } from "./auth-context";
 import {
   IDLE_TIMEOUT_MS,
   SESSION_EXPIRED_EVENT,
-  clearSessionStorage,
   getLastActivity,
   touchActivity,
 } from "../utils/session";
@@ -35,11 +35,13 @@ export function AuthProvider({ children }) {
   // Por qué se cerró la sesión: null | "idle" | "expired". Lo lee el Login.
   const [logoutReason, setLogoutReason] = useState(initial.reason);
 
-  // Si arrancamos con sesión caducada, limpiamos los tokens viejos.
-  // Va en un efecto porque borrar datos es un efecto secundario y
+  // Si arrancamos con sesión caducada por inactividad, cerramos la sesión vieja:
+  // se revoca su refresh en el servidor y se limpian los tokens.
+  // Va en un efecto porque es un efecto secundario (red + almacenamiento) y
   // readInitialSession debe ser pura (React puede ejecutarla dos veces en StrictMode).
+  // Si el efecto se ejecuta dos veces, la segunda ya no encuentra refresh y no hace nada.
   useEffect(() => {
-    if (initial.reason === "idle") clearSessionStorage();
+    if (initial.reason === "idle") endSession();
   }, [initial.reason]);
 
   const login = useCallback(async (username, password) => {
@@ -62,10 +64,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Único punto de cierre de sesión: manual (botón), inactividad (SessionGuard,
+  // "idle") y sesión expirada (evento de axios, "expired") pasan todos por aquí.
+  // endSession() revoca el refresh en el servidor SIN esperar la respuesta y
+  // limpia el almacenamiento al instante: el cierre nunca se bloquea por la red.
   // reason es opcional. El typeof protege un caso real: Dashboard hace
   // <button onClick={logout}>, y React le pasaría el EVENTO de clic como primer argumento.
   const logout = useCallback((reason) => {
-    clearSessionStorage();
+    endSession();
     setLogoutReason(typeof reason === "string" ? reason : null);
     setUser(null);
   }, []);
@@ -75,6 +81,7 @@ export function AuthProvider({ children }) {
   //  2. otras pestañas: el evento "storage" solo se dispara en las DEMÁS pestañas
   //     cuando alguien cambia localStorage. Así, cerrar sesión en una pestaña
   //     cierra todas, e iniciar sesión en una la refleja en las otras.
+  //     (No hace falta revocar aquí: la pestaña que cerró sesión ya lo hizo.)
   useEffect(() => {
     const onExpired = () => logout("expired");
 
